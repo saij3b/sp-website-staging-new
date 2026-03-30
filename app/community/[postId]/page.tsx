@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils"
 import { httpsCallable } from "firebase/functions"
 import { ASSET_BASE } from "@/lib/assets"
 
+export const runtime = "edge"
+
 export default function PostDetailPage() {
     const params = useParams()
     const postId = params.postId as string
