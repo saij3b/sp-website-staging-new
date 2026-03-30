@@ -6,6 +6,12 @@ interface ApproveBody {
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
+  // 1. Verify the caller is an authenticated StudioX user
+  const authHeader = request.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   let adminAuth: ReturnType<typeof getAdminAuth>;
   let adminDb: ReturnType<typeof getAdminDb>;
   try {
@@ -16,12 +22,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       { error: "Server misconfigured. Missing Firebase Admin credentials." },
       { status: 500 }
     );
-  }
-
-  // 1. Verify the caller is an authenticated StudioX user
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   let firebaseUID: string;
