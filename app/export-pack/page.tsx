@@ -88,6 +88,14 @@ export default function ExportPackPage() {
   const hasAutoDownloadedRef = useRef(false)
 
   const payload = useMemo(() => {
+    const urls = searchParams.getAll("assetUrl").filter((url) => url.length > 0)
+    const assetCreationIds = searchParams.getAll("assetCreationId")
+    const legacyCreationId = searchParams.get("creationId") || ""
+    const assets = urls.map((url, index) => ({
+      url,
+      creationId: assetCreationIds[index] || (index === 0 ? legacyCreationId || undefined : undefined),
+    }))
+
     const campaign: CommunityCampaignMeta = {
       directed: searchParams.get("campaignDirected") === "1",
       goal: searchParams.get("campaignGoal") || undefined,
@@ -101,13 +109,14 @@ export default function ExportPackPage() {
     }
 
     return {
-      assetUrl: searchParams.get("assetUrl") || "",
+      assetUrl: assets[0]?.url || "",
+      assets,
       type: (searchParams.get("type") as "image" | "video" | null) || "image",
       prompt: searchParams.get("prompt") || "",
       title: searchParams.get("title") || "StudioX Campaign Export",
       model: searchParams.get("model") || "",
       aspect: searchParams.get("aspect") || "",
-      creationId: searchParams.get("creationId") || "",
+      creationId: assets[0]?.creationId || legacyCreationId,
       generationPlatform: searchParams.get("generationPlatform") || "",
       autoDownload: searchParams.get("autoDownload") === "1",
       campaign,
@@ -138,9 +147,27 @@ export default function ExportPackPage() {
 
     try {
       const zip = new JSZip()
-      const assetBlob = await fetchAssetBlob(payload.assetUrl)
-      const filenameBase = buildExportPackFilename(payload.title, payload.creationId)
-      const sourceExtension = getAssetExtension(payload.assetUrl, payload.type === "video" ? "mp4" : "jpg")
+      const sourceAssets = payload.assets.length > 0 ? payload.assets : [{ url: payload.assetUrl, creationId: payload.creationId }]
+      const filenameSeed = buildExportPackFilename(payload.title, payload.creationId)
+      const filenameBase = sourceAssets.length > 1 ? `${filenameSeed}-set-${sourceAssets.length}` : filenameSeed
+      const resolvedSources: Array<{
+        url: string
+        creationId?: string
+        blob: Blob
+        extension: string
+      }> = []
+
+      for (let index = 0; index < sourceAssets.length; index += 1) {
+        const source = sourceAssets[index]
+        setStatus(`Fetching source ${index + 1} of ${sourceAssets.length}...`)
+        const blob = await fetchAssetBlob(source.url)
+        resolvedSources.push({
+          url: source.url,
+          creationId: source.creationId,
+          blob,
+          extension: getAssetExtension(source.url, payload.type === "video" ? "mp4" : "jpg"),
+        })
+      }
 
       zip.file(
         "campaign-brief.json",
@@ -152,7 +179,12 @@ export default function ExportPackPage() {
             generationPlatform: payload.generationPlatform,
             aspect: payload.aspect,
             creationId: payload.creationId,
-            sourceAsset: payload.assetUrl,
+            sourceAssets: resolvedSources.map((source, index) => ({
+              index: index + 1,
+              url: source.url,
+              creationId: source.creationId || null,
+              extension: source.extension,
+            })),
             campaign: payload.campaign,
             selectedPresetIds: selectedPresets.map((preset) => preset.id),
             exportedAt: new Date().toISOString(),
@@ -175,22 +207,37 @@ export default function ExportPackPage() {
           payload.campaign.platform ? `Primary Platform: ${payload.campaign.platform}` : "",
           payload.campaign.style ? `Style: ${payload.campaign.style}` : "",
           payload.prompt ? `Prompt: ${payload.prompt}` : "",
+          `Source assets: ${resolvedSources.length}`,
           "",
           payload.type === "image"
-            ? `Included: original asset + ${selectedPresets.length} selected image variants.`
+            ? `Included: ${resolvedSources.length} source image(s) + ${selectedPresets.length} selected variant(s) per source.`
             : "Included: original video asset + campaign brief for manual downstream resizing.",
         ]
           .filter(Boolean)
           .join("\n")
       )
 
-      zip.file(`source/original.${sourceExtension}`, assetBlob)
+      for (let sourceIndex = 0; sourceIndex < resolvedSources.length; sourceIndex += 1) {
+        const source = resolvedSources[sourceIndex]
+        const sourceName =
+          resolvedSources.length === 1
+            ? `source/original.${source.extension}`
+            : `source/original-${String(sourceIndex + 1).padStart(2, "0")}.${source.extension}`
+        zip.file(sourceName, source.blob)
+      }
 
       if (payload.type === "image") {
-        for (const preset of selectedPresets) {
-          setStatus(`Building ${preset.label}...`)
-          const variantBlob = await buildImageVariant(assetBlob, preset.width, preset.height)
-          zip.file(`variants/${preset.id}.jpg`, variantBlob)
+        for (let sourceIndex = 0; sourceIndex < resolvedSources.length; sourceIndex += 1) {
+          const source = resolvedSources[sourceIndex]
+          for (const preset of selectedPresets) {
+            setStatus(`Building ${preset.label} for source ${sourceIndex + 1}/${resolvedSources.length}...`)
+            const variantBlob = await buildImageVariant(source.blob, preset.width, preset.height)
+            const variantName =
+              resolvedSources.length === 1
+                ? `variants/${preset.id}.jpg`
+                : `variants/source-${String(sourceIndex + 1).padStart(2, "0")}/${preset.id}.jpg`
+            zip.file(variantName, variantBlob)
+          }
         }
       } else {
         zip.file(
@@ -198,7 +245,7 @@ export default function ExportPackPage() {
           [
             "Video pack note",
             "",
-            "The original video asset is included.",
+            `The original video assets are included (${resolvedSources.length} file${resolvedSources.length === 1 ? "" : "s"}).`,
             "For video-safe reframing, the next phase should add provider-side or editor-side transcoding.",
             "This MVP pack gives you the original plus the campaign brief and platform notes.",
           ].join("\n")
@@ -287,6 +334,10 @@ export default function ExportPackPage() {
                 <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Aspect</p>
                 <p className="mt-2 text-lg font-medium">{payload.aspect || "Auto"}</p>
               </div>
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Source Assets</p>
+                <p className="mt-2 text-lg font-medium">{payload.assets.length}</p>
+              </div>
             </div>
 
             {payload.prompt ? (
@@ -301,7 +352,11 @@ export default function ExportPackPage() {
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Included</p>
               <h2 className="text-2xl font-semibold">
-                {payload.type === "image" ? `${selectedPresets.length} image variants` : "Video source pack"}
+                {payload.type === "image"
+                  ? payload.assets.length > 1
+                    ? `${payload.assets.length} x ${selectedPresets.length} variants`
+                    : `${selectedPresets.length} image variants`
+                  : "Video source pack"}
               </h2>
             </div>
 
@@ -329,6 +384,11 @@ export default function ExportPackPage() {
                   The MVP video pack includes the original video, campaign brief, and export notes. Proper automated reframing is the next phase.
                 </div>
               )}
+              {payload.assets.length > 1 ? (
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-zinc-300">
+                  Batch mode is enabled. This ZIP will include every generated source plus platform variants for each source.
+                </div>
+              ) : null}
             </div>
 
             <Button

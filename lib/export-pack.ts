@@ -8,8 +8,14 @@ export interface ExportPackPreset {
   platform: string
 }
 
+export interface ExportPackSourceAsset {
+  url: string
+  creationId?: string
+}
+
 export interface ExportPackPayload {
   assetUrl: string
+  assets?: ExportPackSourceAsset[]
   type: "image" | "video"
   prompt?: string
   title?: string
@@ -83,7 +89,17 @@ export function resolveExportPackPresets(input: {
 
 export function buildExportPackHref(payload: ExportPackPayload): string {
   const params = new URLSearchParams()
-  params.set("assetUrl", payload.assetUrl)
+  const assets =
+    payload.assets && payload.assets.length > 0
+      ? payload.assets.filter((asset) => asset.url.trim().length > 0)
+      : [{ url: payload.assetUrl, creationId: payload.creationId }]
+
+  for (const asset of assets) {
+    params.append("assetUrl", asset.url)
+    if (asset.creationId) params.append("assetCreationId", asset.creationId)
+  }
+
+  if (!params.get("assetUrl")) return "/export-pack"
   params.set("type", payload.type)
 
   if (payload.prompt) params.set("prompt", payload.prompt)

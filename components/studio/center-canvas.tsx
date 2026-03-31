@@ -190,6 +190,30 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
         window.open(href, "_blank");
     };
 
+    const openBatchExportPack = (urls: string[], creationIds?: string[]) => {
+        if (urls.length === 0) return;
+        const campaign = buildCampaignMeta();
+        const assets = urls.map((url, index) => ({
+            url,
+            creationId: creationIds?.[index] || undefined,
+        }));
+        const href = buildExportPackHref({
+            assetUrl: urls[0] || "",
+            assets,
+            type: activeGeneration?.type || "image",
+            prompt: activeGeneration?.prompt,
+            title: activeGeneration?.prompt || "StudioX Export",
+            model: activeGeneration?.model || activeGeneration?.settings?.model,
+            aspect: activeGeneration?.settings?.aspectRatio || activeGeneration?.settings?.size || aspectRatio,
+            creationId: creationIds?.[0] || activeGeneration?.creationId,
+            generationPlatform: activePlatform,
+            campaign,
+            presetIds: campaign?.presetIds,
+            autoDownload: Boolean(campaign?.directed),
+        });
+        window.open(href, "_blank");
+    };
+
     const openClawHub = (url: string, creationId?: string) => {
         const params = new URLSearchParams();
         if (activeGeneration?.prompt) params.set("prompt", activeGeneration.prompt);
@@ -201,12 +225,20 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
     };
 
     useEffect(() => {
-        if (!activeGeneration || activeGeneration.status !== "completed" || !activeGeneration.src) return;
+        if (!activeGeneration || activeGeneration.status !== "completed") return;
         if (activeGeneration.settings?.auto_export_pack !== "1") return;
         if (autoExportDoneRef.current === activeGeneration.id) return;
 
+        const primarySource = activeGeneration.src || activeGeneration.srcs?.[0];
+        if (!primarySource) return;
+
         autoExportDoneRef.current = activeGeneration.id;
-        openExportPack(activeGeneration.src, activeGeneration.type, activeGeneration.creationId);
+        if (activeGeneration.srcs && activeGeneration.srcs.length > 1) {
+            openBatchExportPack(activeGeneration.srcs, activeGeneration.creationIds);
+            return;
+        }
+
+        openExportPack(primarySource, activeGeneration.type, activeGeneration.creationId);
     }, [activeGeneration]);
 
     const getAspectRatioClass = (ratio: string) => {
@@ -274,6 +306,18 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
                                 className="w-full px-4 sm:px-6 py-12 md:py-20 self-start transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)]"
                                 style={{ maxWidth: maxWidthStyle }}
                             >
+                                <div className="mb-6 sm:mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="text-sm text-zinc-300">
+                                        Campaign set ready: <span className="font-semibold text-white">{activeGeneration.srcs?.length || 0} outputs</span>
+                                    </div>
+                                    <button
+                                        onClick={() => openBatchExportPack(activeGeneration.srcs || [], activeGeneration.creationIds)}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-lime-400/30 bg-lime-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-lime-200 hover:bg-lime-400/20 transition-colors"
+                                    >
+                                        <Package className="w-3.5 h-3.5" />
+                                        Export Full Campaign Pack
+                                    </button>
+                                </div>
                                 <div className={cn(
                                     "grid gap-20 sm:gap-24 w-full mx-auto justify-items-center items-start",
                                     getGridClass(activeGeneration.srcs!.length)
