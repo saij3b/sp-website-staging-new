@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { ASSET_BASE } from "@/lib/assets";
 import { chooseProvider, type StudioProvider } from "@/lib/provider-routing";
 import { VIDEO_MODELS } from "@/lib/model-config";
+import { persistStudioGeneration } from "@/lib/studio-generations";
 
 interface NormalizedJobStatus {
   status: "processing" | "completed" | "failed";
@@ -86,6 +87,29 @@ function normalizeApiMartStatus(payload: any): NormalizedJobStatus {
     taskId: task?.id,
     thumbnailUrl: videoEntries[0]?.thumbnail_url || task?.result?.thumbnail_url,
   };
+}
+
+function isApiMartDirectImageResponse(payload: any) {
+  return Array.isArray(payload?.data) && payload.data.some((entry: any) => entry?.b64_json || entry?.url);
+}
+
+function base64ToBlob(base64: string, mimeType = "image/png") {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
+}
+
+function extensionFromBlob(blob: Blob, fallback = "png") {
+  if (blob.type.includes("jpeg")) return "jpg";
+  if (blob.type.includes("webp")) return "webp";
+  if (blob.type.includes("gif")) return "gif";
+  if (blob.type.includes("png")) return "png";
+  return fallback;
 }
 
 export default function StudioPage() {
@@ -204,6 +228,55 @@ function StudioLayout() {
     return () => ctx.revert();
   }, []);
 
+  const buildCampaignMeta = (prompt: string, settings: any) => {
+    if (settings?.campaign) return settings.campaign;
+
+    const goal = settings?.director_goal || undefined;
+    const platform = settings?.director_platform || undefined;
+    const style = settings?.director_style || undefined;
+    const variationCount = settings?.director_variations ? Number(settings.director_variations) : undefined;
+    const directed = settings?.campaign_directed === "1" || Boolean(goal || platform || style);
+
+    if (!directed && !goal && !platform && !style && !variationCount) {
+      return null;
+    }
+
+    return {
+      directed,
+      goal,
+      platform,
+      style,
+      variationCount,
+      brief: settings?.campaign_brief || prompt,
+    };
+  };
+
+  const persistCompletedGeneration = async (item: GenerationItem) => {
+    if (!user?.uid || item.status !== "completed" || !item.src) return;
+
+    try {
+      await persistStudioGeneration(user.uid, {
+        id: item.id,
+        creationId: item.creationId || item.taskId || item.id,
+        taskId: item.taskId || null,
+        prompt: item.prompt,
+        model: item.model,
+        type: item.type,
+        outputUrl: item.src,
+        outputUrls: item.srcs,
+        thumbnailUrl: item.thumbnailUrl || null,
+        generationPlatform: item.generationPlatform || item.settings?.provider || "poyo",
+        rootCreationId: item.settings?.rootCreationId || item.settings?.originalCreationId || item.creationId || item.id,
+        parentCreationId: item.settings?.originalCreationId || null,
+        remixDepth: item.settings?.remixDepth || 0,
+        sourcePostId: item.settings?.sourcePostId || null,
+        campaign: buildCampaignMeta(item.prompt, item.settings),
+      });
+    } catch (error) {
+      console.warn("Failed to persist studio generation locally:", error);
+    }
+  };
+
   const handleGenerate = async (prompt: string, settings: any) => {
     setIsGenerating(true);
     
@@ -222,6 +295,14 @@ function StudioLayout() {
         const storagePath = `studio-inputs/${user?.uid || "anonymous"}/${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
         const storageRef = ref(storage, storagePath);
         const uploadResult = await uploadBytesResumable(storageRef, file);
+        return await getDownloadURL(uploadResult.ref);
+      };
+
+      const uploadGeneratedAsset = async (blob: Blob, jobId: string, index: number, fallbackExtension = "png") => {
+        const extension = extensionFromBlob(blob, fallbackExtension);
+        const storagePath = `studio-results/${user?.uid || "anonymous"}/${jobId}_${index}.${extension}`;
+        const storageRef = ref(storage, storagePath);
+        const uploadResult = await uploadBytesResumable(storageRef, blob);
         return await getDownloadURL(uploadResult.ref);
       };
 
@@ -286,10 +367,18 @@ function StudioLayout() {
       let taskId: string | undefined;
 
       if (resolvedProvider === "apimart") {
-        const endpoint =
-          generationType === "video"
+        const isVideoRemix = genMode === "remix" && generationType === "video";
+        const remixTaskId = settings.originalTaskId || settings.taskId || settings.originalCreationId;
+        const endpoint = isVideoRemix
+          ? `/api/apimart/videos/${encodeURIComponent(remixTaskId || "")}/remix`
+          : generationType === "video"
             ? "/api/apimart/videos/generations"
             : "/api/apimart/images/generations";
+
+        if (isVideoRemix && !remixTaskId) {
+          throw new Error("This video cannot be remixed yet because its ApiMart task ID is missing.");
+        }
+
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {
@@ -304,6 +393,63 @@ function StudioLayout() {
         if (!response.ok) {
           throw new Error(submission?.error || "ApiMart generation submission failed");
         }
+
+        if (generationType === "image" && isApiMartDirectImageResponse(submission)) {
+          const directImageJobId = `apimart-img-${Date.now()}`;
+          const responseItems = Array.isArray(submission.data) ? submission.data : [];
+          const uploadedUrls = await Promise.all(
+            responseItems.map(async (entry: any, index: number) => {
+              if (entry?.b64_json) {
+                const outputFormat = submission?.output_format || "png";
+                const mimeType = outputFormat === "jpg" ? "image/jpeg" : `image/${outputFormat}`;
+                return uploadGeneratedAsset(base64ToBlob(entry.b64_json, mimeType), directImageJobId, index, outputFormat === "jpg" ? "jpg" : outputFormat);
+              }
+
+              if (entry?.url) {
+                const assetResponse = await fetch(entry.url);
+                if (!assetResponse.ok) {
+                  throw new Error("ApiMart returned an image URL that could not be downloaded");
+                }
+                return uploadGeneratedAsset(await assetResponse.blob(), directImageJobId, index);
+              }
+
+              throw new Error("ApiMart image response did not include image data");
+            })
+          );
+
+          if (uploadedUrls.length === 0) {
+            throw new Error("ApiMart returned no images");
+          }
+
+          jobId = directImageJobId;
+          const completedItem: GenerationItem = {
+            id: jobId,
+            creationId: jobId,
+            creationIds: uploadedUrls.map((_, index) => `${jobId}_${index}`),
+            taskId: undefined,
+            generationPlatform: resolvedProvider,
+            type: "image",
+            prompt,
+            model: usedModel,
+            status: "completed",
+            src: uploadedUrls[0],
+            srcs: uploadedUrls.length > 1 ? uploadedUrls : undefined,
+            settings: {
+              ...settings,
+              n: uploadedUrls.length,
+              provider: resolvedProvider,
+              previewUrl: uploadedUrls[0],
+            },
+          };
+
+          setActiveGeneration(completedItem);
+          setGenerations([completedItem]);
+          setIsGenerating(false);
+          toast.success(`Rendered ${uploadedUrls.length} ApiMart image${uploadedUrls.length > 1 ? "s" : ""}.`, { id: "gen-toast" });
+          void persistCompletedGeneration(completedItem);
+          return;
+        }
+
         taskId = submission?.data?.[0]?.task_id;
         if (!taskId) {
           throw new Error("ApiMart did not return a task ID");
@@ -394,7 +540,7 @@ function StudioLayout() {
             const completedItems = urls.map((url: string, index: number) => ({
               ...item,
               id: index === 0 ? jobId : `${jobId}_${index}`,
-              creationId: (data.creationIds || data.creation_ids)?.[index] || data.creationId,
+              creationId: (data.creationIds || data.creation_ids)?.[index] || data.creationId || data.taskId || item.taskId || jobId,
               taskId: data.taskId || item.taskId || jobId,
               generationPlatform: provider,
               status: "completed" as const,
@@ -409,10 +555,11 @@ function StudioLayout() {
               id: jobId,
               taskId: data.taskId || item.taskId || jobId,
               generationPlatform: provider,
+              creationId: data.creationId || data.taskId || item.creationId || jobId,
               status: "completed" as const,
               src: urls[0], 
               srcs: urls,
-              creationIds: data.creationIds || data.creation_ids || Array(urls.length).fill(data.creationId),
+              creationIds: data.creationIds || data.creation_ids || Array(urls.length).fill(data.creationId || data.taskId || item.taskId || jobId),
               thumbnailUrl: data.thumbnailUrl,
             };
 
@@ -423,6 +570,7 @@ function StudioLayout() {
               const cleaned = prev.filter(g => g.id !== jobId);
               return [...completedItems, ...cleaned];
             });
+            void persistCompletedGeneration(batchItem);
           } else {
             
             const finalUrl = urls[0] || data.outputUrl;
@@ -433,11 +581,12 @@ function StudioLayout() {
               status: "completed" as const,
               src: finalUrl,
               srcs: undefined,
-              creationId: data.creationId,
+              creationId: data.creationId || data.taskId || item.creationId || jobId,
               thumbnailUrl: data.thumbnailUrl,
             };
             setActiveGeneration(completedItem);
             setGenerations((prev: GenerationItem[]) => prev.map(g => g.id === jobId ? completedItem : g));
+            void persistCompletedGeneration(completedItem);
           }
           setIsGenerating(false);
         } else if (data.status === "failed") {

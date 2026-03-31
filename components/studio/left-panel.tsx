@@ -71,6 +71,14 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
     const urlPrompt = searchParams?.get("prompt") || "";
     const urlPreview = searchParams?.get("previewUrl") || "";
     const urlRemixType = searchParams?.get("remixType")?.toLowerCase() || "image";
+    const urlTaskId = searchParams?.get("taskId") || "";
+    const urlGenerationPlatform = searchParams?.get("generationPlatform") || "";
+    const urlCampaignGoal = searchParams?.get("campaignGoal") || "";
+    const urlCampaignPlatform = searchParams?.get("campaignPlatform") || "";
+    const urlCampaignStyle = searchParams?.get("campaignStyle") || "";
+    const urlCampaignVariationCount = searchParams?.get("campaignVariationCount") || "";
+    const urlCampaignBrief = searchParams?.get("campaignBrief") || "";
+    const urlCampaignDirected = searchParams?.get("campaignDirected") || "";
 
     const urlCreationId = searchParams?.get("creationId") || "";
     const urlRootCreationId = searchParams?.get("rootCreationId") || "";
@@ -310,12 +318,21 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
             rootCreationId: rootCreationId || creationId || undefined,
             remixDepth: remixDepth || undefined,
             sourcePostId: sourcePostId || undefined,
-            provider: chooseProvider({
-                mode: creationMode === "remix" ? "remix" : (cfg?.type === "video" ? "video" : "image"),
-                model: selectedModel.id,
-                wantsRemix: creationMode === "remix" || Boolean(creationId),
-                hasReferenceImage: Boolean(sourceFile || startImageFile || previewUrl),
-            }),
+            originalTaskId: urlTaskId || undefined,
+            provider: urlGenerationPlatform === "apimart" || urlGenerationPlatform === "poyo"
+                ? urlGenerationPlatform
+                : chooseProvider({
+                    mode: creationMode === "remix" ? "remix" : (cfg?.type === "video" ? "video" : "image"),
+                    model: selectedModel.id,
+                    wantsRemix: creationMode === "remix" || Boolean(creationId),
+                    hasReferenceImage: Boolean(sourceFile || startImageFile || previewUrl),
+                }),
+            campaign_brief: urlCampaignBrief || undefined,
+            campaign_directed: urlCampaignDirected || undefined,
+            director_goal: urlCampaignGoal || undefined,
+            director_platform: urlCampaignPlatform || undefined,
+            director_style: urlCampaignStyle || undefined,
+            director_variations: urlCampaignVariationCount || undefined,
             sourceFile: sourceFile || undefined,
             sourceVideo: sourceVideo || undefined,
             aspectRatio,

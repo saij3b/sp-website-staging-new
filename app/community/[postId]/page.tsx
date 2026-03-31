@@ -508,7 +508,7 @@ export default function PostDetailPage() {
                         <Button
                             className="w-full h-12 rounded-xl bg-[#c8ff00] hover:bg-[#b8ef00] text-black font-semibold text-sm transition-all duration-200"
                             onClick={() => {
-                                const target = `/studio?mode=remix&prompt=${encodeURIComponent(post.prompt)}&previewUrl=${encodeURIComponent(post.assetUrl)}&creationId=${post.creationId || ''}&rootCreationId=${post.rootCreationId || post.creationId || ''}&remixDepth=${(post.remixDepth || 0) + 1}&sourcePostId=${post.id}&remixType=${post.type}`
+                                const target = `/studio?mode=remix&prompt=${encodeURIComponent(post.prompt)}&previewUrl=${encodeURIComponent(post.assetUrl)}&creationId=${post.creationId || ''}&rootCreationId=${post.rootCreationId || post.creationId || ''}&remixDepth=${(post.remixDepth || 0) + 1}&sourcePostId=${post.id}&taskId=${encodeURIComponent(post.taskId || post.creationId || '')}&generationPlatform=${encodeURIComponent(post.generationPlatform || '')}&remixType=${post.type}`
                                 if (!user) {
                                     router.push(`/login?redirect=${encodeURIComponent(target)}`)
                                 } else {
@@ -623,7 +623,7 @@ export default function PostDetailPage() {
                                 <Button
                                     className="w-full bg-white text-black hover:bg-zinc-200 rounded-xl h-12 text-base font-medium font-sans"
                                     onClick={() => {
-                                        const target = `/studio?mode=remix&prompt=${encodeURIComponent(post.prompt)}&previewUrl=${encodeURIComponent(post.assetUrl)}&creationId=${post.creationId || ''}&rootCreationId=${post.rootCreationId || post.creationId || ''}&remixDepth=${(post.remixDepth || 0) + 1}&sourcePostId=${post.id}&remixType=${post.type}`
+                                        const target = `/studio?mode=remix&prompt=${encodeURIComponent(post.prompt)}&previewUrl=${encodeURIComponent(post.assetUrl)}&creationId=${post.creationId || ''}&rootCreationId=${post.rootCreationId || post.creationId || ''}&remixDepth=${(post.remixDepth || 0) + 1}&sourcePostId=${post.id}&taskId=${encodeURIComponent(post.taskId || post.creationId || '')}&generationPlatform=${encodeURIComponent(post.generationPlatform || '')}&remixType=${post.type}`
                                         if (!user) {
                                             router.push(`/login?redirect=${encodeURIComponent(target)}`)
                                         } else {

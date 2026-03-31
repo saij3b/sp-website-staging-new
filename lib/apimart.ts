@@ -95,6 +95,17 @@ export interface ApiMartSubmissionResponse {
   }>
 }
 
+export interface ApiMartDirectImageResponse {
+  created: number
+  background?: string
+  output_format?: string
+  data: Array<{
+    b64_json?: string
+    url?: string
+    revised_prompt?: string
+  }>
+}
+
 export interface ApiMartBalanceResponse {
   success: boolean
   remain_balance: number
@@ -116,7 +127,7 @@ export async function queryApiMartUserBalance() {
 }
 
 export async function submitApiMartImageGeneration(body: Record<string, unknown>) {
-  return apimartRequest<ApiMartSubmissionResponse>({
+  return apimartRequest<ApiMartSubmissionResponse | ApiMartDirectImageResponse>({
     method: "POST",
     path: "/images/generations",
     body,
