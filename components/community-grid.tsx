@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation"
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebaseClient"
 import type { CommunityPost } from "@/lib/types"
+import { mapCommunityPost } from "@/lib/community-post"
 
 export function CommunityGrid() {
     const gridRef = useRef<HTMLDivElement>(null)
@@ -41,34 +42,7 @@ export function CommunityGrid() {
                     const data = doc.data();
                     return data.isDeleted !== true && data.status !== "deleted";
                 })
-                .map(doc => {
-                    const data = doc.data();
-                    return {
-                        id: doc.id,
-                        type: data.type || "image",
-                        title: data.title || "Untitled",
-                        description: data.description || "",
-                        prompt: data.prompt || "",
-                        author: {
-                            id: data.author?.uid || "unknown",
-                            name: data.author?.name || "Anonymous",
-                            avatar: data.author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${doc.id}`
-                        },
-                        assetUrl: data.assetUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2560&auto=format&fit=crop",
-                        thumbnailUrl: data.thumbnailUrl || data.assetUrl || "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2560&auto=format&fit=crop",
-                        aspectRatio: data.type === "video" ? "landscape" : "portrait", 
-                        likes: data.likes || 0,
-                        views: data.views || 0,
-                        allowRemix: data.allowRemix ?? true,
-                        createdAt: data.createdAt?.toDate() || new Date(),
-                        creationId: data.creationId || data.parameters?.originalCreationId,
-                        tags: data.tags || [],
-                        model: data.model || "Unknown",
-                        preset: data.preset || "General",
-                        quality: data.quality || "Standard",
-                        size: data.size || "1024x1024",
-                    } as CommunityPost;
-                });
+                .map(doc => mapCommunityPost(doc.id, doc.data() as Record<string, any>));
             setLivePosts(fetchedPosts);
         }, (error) => {
             console.error("Error fetching live posts:", error);

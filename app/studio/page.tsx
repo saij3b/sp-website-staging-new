@@ -15,6 +15,78 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ASSET_BASE } from "@/lib/assets";
+import { chooseProvider, type StudioProvider } from "@/lib/provider-routing";
+import { VIDEO_MODELS } from "@/lib/model-config";
+
+interface NormalizedJobStatus {
+  status: "processing" | "completed" | "failed";
+  progress?: number;
+  completedCount?: number;
+  totalCount?: number;
+  outputUrl?: string;
+  outputUrls?: string[];
+  error?: string;
+  creationId?: string;
+  creationIds?: string[];
+  taskId?: string;
+  thumbnailUrl?: string;
+}
+
+const VIDEO_MODEL_IDS = new Set(Object.keys(VIDEO_MODELS));
+
+function inferGenerationType(mode: string, model: string): "image" | "video" {
+  if (mode === "video") return "video";
+  if (mode === "templates" && VIDEO_MODEL_IDS.has(model)) return "video";
+  if (mode === "remix" && VIDEO_MODEL_IDS.has(model)) return "video";
+  return VIDEO_MODEL_IDS.has(model) ? "video" : "image";
+}
+
+function normalizeApiMartStatus(payload: any): NormalizedJobStatus {
+  const task = payload?.data ?? {};
+  const imageUrls = Array.isArray(task?.result?.images)
+    ? task.result.images.flatMap((group: any) =>
+        Array.isArray(group?.url) ? group.url.filter((url: unknown) => typeof url === "string" && url.length > 0) : []
+      )
+    : [];
+  const videoEntries = Array.isArray(task?.result?.videos) ? task.result.videos : [];
+  const videoUrls = videoEntries
+    .map((entry: any) => entry?.url)
+    .filter((url: unknown) => typeof url === "string" && url.length > 0);
+  const directUrls = Array.isArray(task?.result?.url)
+    ? task.result.url.filter((url: unknown) => typeof url === "string" && url.length > 0)
+    : typeof task?.result?.url === "string"
+      ? [task.result.url]
+      : [];
+  const urls = [...imageUrls, ...videoUrls, ...directUrls];
+
+  const rawStatus = typeof task?.status === "string" ? task.status : "pending";
+  const status =
+    rawStatus === "completed"
+      ? "completed"
+      : rawStatus === "failed" || rawStatus === "cancelled"
+        ? "failed"
+        : "processing";
+  const totalCount = Math.max(urls.length, 1);
+
+  return {
+    status,
+    progress:
+      typeof task?.progress === "number"
+        ? task.progress
+        : status === "completed"
+          ? 100
+          : rawStatus === "processing"
+            ? 50
+            : 10,
+    completedCount: status === "completed" ? totalCount : 0,
+    totalCount,
+    outputUrl: urls[0],
+    outputUrls: urls.length > 0 ? urls : undefined,
+    error: task?.error?.message || task?.error?.type,
+    taskId: task?.id,
+    thumbnailUrl: videoEntries[0]?.thumbnail_url || task?.result?.thumbnail_url,
+  };
+}
 
 export default function StudioPage() {
   return (
@@ -141,10 +213,9 @@ function StudioLayout() {
     localStorage.removeItem("studio_active_generation");
     localStorage.removeItem("studio_active_time");
 
-    const createStudioJob = httpsCallable(functions, "createStudioJob");
-
     try {
-      const { model, mode: genMode, sourceFile, sourceVideo, sourceFiles, sourceVideos, end_image_file, aspectRatio: _ar, ...dynamicParameters } = settings;
+      const createStudioJob = httpsCallable(functions, "createStudioJob");
+      const { model, mode: genMode, provider, sourceFile, sourceVideo, sourceFiles, sourceVideos, end_image_file, aspectRatio: _ar, ...dynamicParameters } = settings;
 
       const uploadAsset = async (file: File) => {
         const extension = file.name.split('.').pop() || "png";
@@ -191,30 +262,79 @@ function StudioLayout() {
 
       const count = dynamicParameters.n && typeof dynamicParameters.n === 'number' ? dynamicParameters.n : 1;
       const usedModel = model || (genMode === 'video' ? "sora-2" : "flux-2-pro");
+      const generationType = inferGenerationType(genMode || mode, usedModel);
+      const resolvedProvider =
+        (provider as StudioProvider | undefined) ||
+        chooseProvider({
+          mode: genMode === "remix" ? "remix" : generationType,
+          model: usedModel,
+          wantsRemix: genMode === "remix" || Boolean(settings.originalCreationId),
+          hasReferenceImage: Boolean(
+            dynamicParameters.image_url ||
+            dynamicParameters.image_urls?.length ||
+            dynamicParameters.video_url ||
+            dynamicParameters.video_urls?.length
+          ),
+        });
+      const parameters = {
+        ...(prompt ? { prompt } : {}),
+        ...dynamicParameters,
+        n: Number(count),
+      };
 
-      const result = await createStudioJob({
-        provider: "poyo",
-        model: usedModel,
-        parameters: {
-          ...(prompt ? { prompt } : {}),
-          ...dynamicParameters,
-          n: Number(count),
+      let jobId = "";
+      let taskId: string | undefined;
+
+      if (resolvedProvider === "apimart") {
+        const endpoint =
+          generationType === "video"
+            ? "/api/apimart/videos/generations"
+            : "/api/apimart/images/generations";
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: usedModel,
+            ...parameters,
+          }),
+        });
+        const submission = await response.json();
+        if (!response.ok) {
+          throw new Error(submission?.error || "ApiMart generation submission failed");
         }
-      });
+        taskId = submission?.data?.[0]?.task_id;
+        if (!taskId) {
+          throw new Error("ApiMart did not return a task ID");
+        }
+        jobId = taskId;
+      } else {
+        const result = await createStudioJob({
+          provider: resolvedProvider,
+          model: usedModel,
+          parameters,
+        });
+        jobId = (result.data as any).jobId;
+      }
 
-      const jobId = (result.data as any).jobId;
       console.log(`Job queued! ID:`, jobId);
       toast.success(`Task queued! Rendering ${count} results...`, { id: 'gen-toast' });
 
       const newItem: GenerationItem = {
         id: jobId,
-        type: settings.mode === 'video' ? 'video' : 'image',
+        taskId: taskId || jobId,
+        generationPlatform: resolvedProvider,
+        type: generationType,
         prompt: prompt,
+        model: usedModel,
         status: "queued" as const,
         settings: {
           ...settings,
           n: count,
-          previewUrl: dynamicParameters.image_url || settings.previewUrl
+          provider: resolvedProvider,
+          previewUrl: dynamicParameters.image_url || settings.previewUrl,
+          taskId: taskId || jobId,
         }
       };
 
@@ -239,7 +359,8 @@ function StudioLayout() {
   };
 
   const startJobPoller = async (jobId: string, item: GenerationItem) => {
-    const getJobStatus = httpsCallable(functions, "getJobStatus");
+    const provider = (item.generationPlatform || item.settings?.provider || "poyo") as StudioProvider;
+    const getJobStatus = provider === "poyo" ? httpsCallable(functions, "getJobStatus") : null;
 
     const checkStatus = async () => {
       if (cancelledJobsRef.current.has(jobId)) {
@@ -248,8 +369,18 @@ function StudioLayout() {
         return;
       }
       try {
-        const result = await getJobStatus({ jobId: jobId });
-        const data = result.data as any;
+        const data: any = provider === "apimart"
+          ? await (async () => {
+              const response = await fetch(`/api/apimart/tasks/${encodeURIComponent(jobId)}?language=en`, {
+                cache: "no-store",
+              });
+              const payload = await response.json();
+              if (!response.ok) {
+                throw new Error(payload?.error || "ApiMart task polling failed");
+              }
+              return normalizeApiMartStatus(payload);
+            })()
+          : (await getJobStatus!({ jobId: jobId })).data;
 
         if (data.status === "completed") {
           console.log("Finished Rendering!", data);
@@ -264,19 +395,25 @@ function StudioLayout() {
               ...item,
               id: index === 0 ? jobId : `${jobId}_${index}`,
               creationId: (data.creationIds || data.creation_ids)?.[index] || data.creationId,
+              taskId: data.taskId || item.taskId || jobId,
+              generationPlatform: provider,
               status: "completed" as const,
               src: url,
-              srcs: undefined 
+              srcs: undefined,
+              thumbnailUrl: data.thumbnailUrl,
             }));
 
             
             const batchItem: GenerationItem = {
               ...item,
               id: jobId,
+              taskId: data.taskId || item.taskId || jobId,
+              generationPlatform: provider,
               status: "completed" as const,
               src: urls[0], 
               srcs: urls,
-              creationIds: data.creationIds || data.creation_ids || Array(urls.length).fill(data.creationId)
+              creationIds: data.creationIds || data.creation_ids || Array(urls.length).fill(data.creationId),
+              thumbnailUrl: data.thumbnailUrl,
             };
 
             setActiveGeneration(batchItem);
@@ -291,10 +428,13 @@ function StudioLayout() {
             const finalUrl = urls[0] || data.outputUrl;
             const completedItem: GenerationItem = {
               ...item,
+              taskId: data.taskId || item.taskId || jobId,
+              generationPlatform: provider,
               status: "completed" as const,
               src: finalUrl,
               srcs: undefined,
-              creationId: data.creationId
+              creationId: data.creationId,
+              thumbnailUrl: data.thumbnailUrl,
             };
             setActiveGeneration(completedItem);
             setGenerations((prev: GenerationItem[]) => prev.map(g => g.id === jobId ? completedItem : g));
@@ -302,7 +442,13 @@ function StudioLayout() {
           setIsGenerating(false);
         } else if (data.status === "failed") {
           console.log("Task Failed, internal backend already refunded tokens!", data.error);
-          const failedItem: GenerationItem = { ...item, status: "failed" as const, error: data.error };
+          const failedItem: GenerationItem = {
+            ...item,
+            taskId: data.taskId || item.taskId || jobId,
+            generationPlatform: provider,
+            status: "failed" as const,
+            error: data.error,
+          };
           setActiveGeneration(failedItem);
           setGenerations((prev: GenerationItem[]) => prev.map(g => g.id === jobId ? failedItem : g));
           setIsGenerating(false);
@@ -315,10 +461,10 @@ function StudioLayout() {
           const totalCount = data.totalCount || item.settings?.n || 1;
 
           setActiveGeneration((prev: GenerationItem | null) =>
-            prev ? { ...prev, status: "generating", progress, completedCount, totalCount } : null
+            prev ? { ...prev, generationPlatform: provider, taskId: data.taskId || prev.taskId || jobId, status: "generating", progress, completedCount, totalCount } : null
           );
           setGenerations((prev: GenerationItem[]) =>
-            prev.map(g => g.id === jobId ? { ...g, status: "generating", progress, completedCount, totalCount } : g)
+            prev.map(g => g.id === jobId ? { ...g, generationPlatform: provider, taskId: data.taskId || g.taskId || jobId, status: "generating", progress, completedCount, totalCount } : g)
           );
           setTimeout(checkStatus, 1500); 
         }
@@ -333,6 +479,7 @@ function StudioLayout() {
   const handleCancel = async () => {
     if (activeGeneration?.id) {
       const jobId = activeGeneration.id;
+      const provider = (activeGeneration.generationPlatform || activeGeneration.settings?.provider || "poyo") as StudioProvider;
       cancelledJobsRef.current.add(jobId);
 
       const cancelledItem: GenerationItem = { ...activeGeneration, status: "failed" };
@@ -345,6 +492,11 @@ function StudioLayout() {
       localStorage.removeItem("studio_active_time");
 
       console.log("Job marked as cancelled locally, syncing with backend...");
+
+      if (provider === "apimart") {
+        toast.info("ApiMart cancellation is not wired yet, so the job was removed locally only.");
+        return;
+      }
 
       try {
         const cancelJob = httpsCallable(functions, "cancelStudioJob");

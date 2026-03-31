@@ -73,6 +73,15 @@ export interface Creation {
   createdAt: Date
 }
 
+export interface CommunityCampaignMeta {
+  directed?: boolean
+  goal?: string
+  platform?: string
+  style?: string
+  variationCount?: number
+  brief?: string
+}
+
 export interface CommunityPost {
   id: string
   title: string
@@ -99,4 +108,11 @@ export interface CommunityPost {
   quality?: string
   size?: string
   creationId?: string
+  parentCreationId?: string
+  rootCreationId?: string
+  remixDepth?: number
+  sourcePostId?: string
+  campaign?: CommunityCampaignMeta
+  generationPlatform?: "poyo" | "apimart" | string
+  taskId?: string
 }

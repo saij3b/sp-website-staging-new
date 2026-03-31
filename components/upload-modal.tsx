@@ -10,11 +10,11 @@ import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import { collection, addDoc, serverTimestamp } from "firebase/firestore"
-import { storage, db, functions } from "@/lib/firebaseClient"
+import { storage } from "@/lib/firebaseClient"
 import { useAuth } from "@/context/auth-context"
-import { httpsCallable } from "firebase/functions"
 import { ASSET_BASE } from "@/lib/assets"
+import { publishCommunityPost } from "@/lib/community-publish"
+import type { CommunityCampaignMeta } from "@/lib/types"
 
 interface UploadModalProps {
     isOpen: boolean
@@ -24,6 +24,13 @@ interface UploadModalProps {
         type: "image" | "video"
         prompt?: string
         creationId?: string
+        parentCreationId?: string
+        rootCreationId?: string
+        remixDepth?: number
+        sourcePostId?: string
+        campaign?: CommunityCampaignMeta
+        generationPlatform?: string
+        taskId?: string
     }
 }
 
@@ -96,14 +103,12 @@ export function UploadModal({ isOpen, onClose, initialData }: UploadModalProps) 
                 modelOutput = "StudioX";
             }
 
-            
-            const publishPost = httpsCallable(functions, "publishPost");
-            await publishPost({
+            const { postId } = await publishCommunityPost({
                 title: title || "StudioX Upload",
                 prompt: description || "No description provided.",
                 caption: description || "",
                 model: modelOutput,
-                type: uploadType,
+                type: uploadType as "image" | "video",
                 creationId: initialData?.creationId || null,
                 author: {
                     name: user.displayName || user.email?.split('@')[0] || "Creator",
@@ -112,19 +117,26 @@ export function UploadModal({ isOpen, onClose, initialData }: UploadModalProps) 
                 },
                 tags: isPublic ? ["community", "upload"] : ["private", "upload"],
                 assetUrl: downloadUrl,
-                thumbnailUrl: downloadUrl, 
+                thumbnailUrl: downloadUrl,
                 allowRemix,
-                isPublic
+                isPublic,
+                parentCreationId: initialData?.parentCreationId,
+                rootCreationId: initialData?.rootCreationId,
+                remixDepth: initialData?.remixDepth,
+                sourcePostId: initialData?.sourcePostId,
+                campaign: initialData?.campaign,
+                generationPlatform: initialData?.generationPlatform,
+                taskId: initialData?.taskId,
             });
 
-            console.log("Successfully published external post!");
+            console.log("Successfully published external post!", postId);
             onClose();
             setFile(null);
             setPreview(null);
             setTitle("");
             setDescription("");
 
-            router.push("/community");
+            router.push(postId ? `/community/${postId}` : "/community");
             router.refresh();
         } catch (error: any) {
             console.error("Upload failed:", error);

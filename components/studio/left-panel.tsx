@@ -34,6 +34,7 @@ import {
     type VideoModelConfig,
     type ModelConfig,
 } from "@/lib/model-config";
+import { chooseProvider } from "@/lib/provider-routing";
 
 interface StudioLeftPanelProps {
     onGenerate: (prompt: string, settings: any) => void;
@@ -72,6 +73,9 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
     const urlRemixType = searchParams?.get("remixType")?.toLowerCase() || "image";
 
     const urlCreationId = searchParams?.get("creationId") || "";
+    const urlRootCreationId = searchParams?.get("rootCreationId") || "";
+    const urlRemixDepth = searchParams?.get("remixDepth") || "0";
+    const urlSourcePostId = searchParams?.get("sourcePostId") || "";
     const [creationMode, setCreationMode] = useState<string>(urlMode);
     const [prompt, setPrompt] = useState(() => {
         if (urlPrompt) return urlPrompt;
@@ -80,6 +84,9 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
     });
     const [previewUrl, setPreviewUrl] = useState(urlPreview);
     const [creationId, setCreationId] = useState(urlCreationId);
+    const [rootCreationId, setRootCreationId] = useState(urlRootCreationId);
+    const [remixDepth, setRemixDepth] = useState(() => Number.parseInt(urlRemixDepth, 10) || 0);
+    const [sourcePostId, setSourcePostId] = useState(urlSourcePostId);
     const [remixType, setRemixType] = useState<string>(urlRemixType);
     const [sourceFile, setSourceFile] = useState<File | null>(null);
     const [sourceVideo, setSourceVideo] = useState<File | null>(null);
@@ -143,6 +150,21 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
         const cId = searchParams?.get("creationId");
         if (cId && cId !== creationId) {
             setCreationId(cId);
+        }
+        const rootId = searchParams?.get("rootCreationId");
+        if (rootId && rootId !== rootCreationId) {
+            setRootCreationId(rootId);
+        }
+        const remixDepthParam = searchParams?.get("remixDepth");
+        if (remixDepthParam) {
+            const parsed = Number.parseInt(remixDepthParam, 10);
+            if (!Number.isNaN(parsed) && parsed !== remixDepth) {
+                setRemixDepth(parsed);
+            }
+        }
+        const sourcePost = searchParams?.get("sourcePostId");
+        if (sourcePost && sourcePost !== sourcePostId) {
+            setSourcePostId(sourcePost);
         }
         const ar = searchParams?.get("aspectRatio");
         if (ar && ar !== aspectRatio) {
@@ -285,6 +307,15 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
             mode: creationMode,
             model: selectedModel.id,
             originalCreationId: creationId || undefined,
+            rootCreationId: rootCreationId || creationId || undefined,
+            remixDepth: remixDepth || undefined,
+            sourcePostId: sourcePostId || undefined,
+            provider: chooseProvider({
+                mode: creationMode === "remix" ? "remix" : (cfg?.type === "video" ? "video" : "image"),
+                model: selectedModel.id,
+                wantsRemix: creationMode === "remix" || Boolean(creationId),
+                hasReferenceImage: Boolean(sourceFile || startImageFile || previewUrl),
+            }),
             sourceFile: sourceFile || undefined,
             sourceVideo: sourceVideo || undefined,
             aspectRatio,
@@ -952,4 +983,3 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
         </div>
     );
 }
-
