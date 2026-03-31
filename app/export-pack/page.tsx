@@ -1,12 +1,12 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import JSZip from "jszip"
 import { useSearchParams } from "next/navigation"
 import { Download, Loader2, Package, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { buildExportPackFilename, EXPORT_PACK_PRESETS } from "@/lib/export-pack"
+import { buildExportPackFilename, EXPORT_PACK_PRESETS, getRecommendedExportPresets } from "@/lib/export-pack"
 import type { CommunityCampaignMeta } from "@/lib/types"
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -80,6 +80,7 @@ export default function ExportPackPage() {
   const searchParams = useSearchParams()
   const [isPreparing, setIsPreparing] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
+  const hasAutoDownloadedRef = useRef(false)
 
   const payload = useMemo(() => {
     const campaign: CommunityCampaignMeta = {
@@ -102,11 +103,17 @@ export default function ExportPackPage() {
       aspect: searchParams.get("aspect") || "",
       creationId: searchParams.get("creationId") || "",
       generationPlatform: searchParams.get("generationPlatform") || "",
+      autoDownload: searchParams.get("autoDownload") === "1",
       campaign,
     }
   }, [searchParams])
 
-  const handleDownloadPack = async () => {
+  const recommendedPresets = useMemo(
+    () => getRecommendedExportPresets(payload.campaign),
+    [payload.campaign]
+  )
+
+  const handleDownloadPack = useCallback(async () => {
     if (!payload.assetUrl) return
 
     setIsPreparing(true)
@@ -197,7 +204,13 @@ export default function ExportPackPage() {
     } finally {
       setIsPreparing(false)
     }
-  }
+  }, [payload])
+
+  useEffect(() => {
+    if (!payload.autoDownload || !payload.assetUrl || hasAutoDownloadedRef.current) return
+    hasAutoDownloadedRef.current = true
+    void handleDownloadPack()
+  }, [handleDownloadPack, payload.assetUrl, payload.autoDownload])
 
   if (!payload.assetUrl) {
     return (
@@ -273,6 +286,14 @@ export default function ExportPackPage() {
             </div>
 
             <div className="space-y-3">
+              {recommendedPresets.length > 0 ? (
+                <div className="rounded-2xl border border-lime-400/20 bg-lime-400/5 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-lime-300">Director Recommendation</p>
+                  <p className="mt-2 text-sm text-zinc-200">
+                    Best first exports: {recommendedPresets.map((preset) => preset.label).join(" + ")}
+                  </p>
+                </div>
+              ) : null}
               {payload.type === "image" ? (
                 EXPORT_PACK_PRESETS.map((preset) => (
                   <div key={preset.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3">

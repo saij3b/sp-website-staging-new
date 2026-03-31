@@ -18,6 +18,7 @@ export interface ExportPackPayload {
   creationId?: string
   generationPlatform?: string
   campaign?: CommunityCampaignMeta
+  autoDownload?: boolean
 }
 
 export const EXPORT_PACK_PRESETS: ExportPackPreset[] = [
@@ -27,6 +28,32 @@ export const EXPORT_PACK_PRESETS: ExportPackPreset[] = [
   { id: "linkedin-post", label: "LinkedIn Post", width: 1200, height: 627, platform: "LinkedIn" },
   { id: "youtube-thumb", label: "YouTube Thumbnail", width: 1280, height: 720, platform: "YouTube" },
 ]
+
+const PRESET_LOOKUP = new Map(EXPORT_PACK_PRESETS.map((preset) => [preset.id, preset]))
+
+export function getRecommendedExportPresets(campaign?: CommunityCampaignMeta): ExportPackPreset[] {
+  const platform = campaign?.platform?.toLowerCase() || ""
+  const goal = campaign?.goal?.toLowerCase() || ""
+
+  const ids =
+    platform.includes("instagram")
+      ? ["instagram-post", "instagram-story"]
+      : platform.includes("youtube")
+        ? ["youtube-thumb", "x-landscape"]
+        : platform.includes("linkedin")
+          ? ["linkedin-post", "x-landscape"]
+          : platform.includes("x")
+            ? ["x-landscape", "instagram-post"]
+            : goal.includes("thumbnail")
+              ? ["youtube-thumb", "x-landscape"]
+              : goal.includes("community")
+                ? ["instagram-post", "x-landscape"]
+                : ["instagram-post", "linkedin-post"]
+
+  return ids
+    .map((id) => PRESET_LOOKUP.get(id))
+    .filter((preset): preset is ExportPackPreset => Boolean(preset))
+}
 
 export function buildExportPackHref(payload: ExportPackPayload): string {
   const params = new URLSearchParams()
@@ -45,6 +72,7 @@ export function buildExportPackHref(payload: ExportPackPayload): string {
   if (payload.campaign?.variationCount) params.set("campaignVariationCount", String(payload.campaign.variationCount))
   if (payload.campaign?.brief) params.set("campaignBrief", payload.campaign.brief)
   if (payload.campaign?.directed) params.set("campaignDirected", "1")
+  if (payload.autoDownload) params.set("autoDownload", "1")
 
   return `/export-pack?${params.toString()}`
 }

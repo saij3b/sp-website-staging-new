@@ -163,6 +163,7 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
     };
 
     const openExportPack = (url: string, type: "image" | "video", creationId?: string) => {
+        const campaign = buildCampaignMeta();
         const href = buildExportPackHref({
             assetUrl: url,
             type,
@@ -172,7 +173,8 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
             aspect: activeGeneration?.settings?.aspectRatio || activeGeneration?.settings?.size || aspectRatio,
             creationId,
             generationPlatform: activePlatform,
-            campaign: buildCampaignMeta(),
+            campaign,
+            autoDownload: Boolean(campaign?.directed),
         });
         window.open(href, "_blank");
     };

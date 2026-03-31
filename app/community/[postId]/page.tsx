@@ -7,7 +7,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useAuth } from "@/context/auth-context"
 import { useRouter } from "next/navigation"
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -24,6 +24,7 @@ import { httpsCallable } from "firebase/functions"
 import { ASSET_BASE } from "@/lib/assets"
 import { mapCommunityPost } from "@/lib/community-post"
 import { buildExportPackHref } from "@/lib/export-pack"
+import { buildCommunityGraphStats, buildLineageChain, dedupeCommunityPosts } from "@/lib/community-graph"
 
 export const runtime = "edge"
 
@@ -35,6 +36,8 @@ export default function PostDetailPage() {
     const [parentPost, setParentPost] = useState<CommunityPost | null>(null)
     const [rootPost, setRootPost] = useState<CommunityPost | null>(null)
     const [childPosts, setChildPosts] = useState<CommunityPost[]>([])
+    const [siblingPosts, setSiblingPosts] = useState<CommunityPost[]>([])
+    const [graphPosts, setGraphPosts] = useState<CommunityPost[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const { isLiked, likesCount, toggleLike, isLoading: isLikeLoading } = usePostLike(postId, post?.likes || 0)
     const [showInfo, setShowInfo] = useState(true)
@@ -137,12 +140,53 @@ export default function PostDetailPage() {
                         setChildPosts([])
                     }
 
+                    if (mappedPost.parentCreationId) {
+                        relatedReads.push(
+                            getDocs(
+                                query(collection(db, "posts"), where("parentCreationId", "==", mappedPost.parentCreationId))
+                            ).then((snapshot) => {
+                                const siblings = snapshot.docs
+                                    .map((siblingDoc) => mapCommunityPost(siblingDoc.id, siblingDoc.data() as Record<string, any>))
+                                    .filter((sibling) => sibling.id !== mappedPost.id)
+                                    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+                                setSiblingPosts(siblings)
+                            })
+                        )
+                    } else {
+                        setSiblingPosts([])
+                    }
+
+                    const graphKey = mappedPost.rootCreationId || mappedPost.creationId
+                    if (graphKey) {
+                        relatedReads.push(
+                            getDocs(
+                                query(collection(db, "posts"), where("rootCreationId", "==", graphKey))
+                            ).then((snapshot) => {
+                                const related = snapshot.docs.map((relatedDoc) =>
+                                    mapCommunityPost(relatedDoc.id, relatedDoc.data() as Record<string, any>)
+                                )
+                                const unique = dedupeCommunityPosts([mappedPost, ...related])
+                                    .filter((relatedPost) => relatedPost.id !== mappedPost.id)
+                                    .sort(
+                                        (a, b) =>
+                                            (a.remixDepth || 0) - (b.remixDepth || 0) ||
+                                            b.createdAt.getTime() - a.createdAt.getTime()
+                                    )
+                                setGraphPosts(unique)
+                            })
+                        )
+                    } else {
+                        setGraphPosts([])
+                    }
+
                     await Promise.all(relatedReads)
                 } else {
                     setPost(null)
                     setParentPost(null)
                     setRootPost(null)
                     setChildPosts([])
+                    setSiblingPosts([])
+                    setGraphPosts([])
                 }
             } catch (err) {
                 console.error("Error fetching post details:", err)
@@ -150,6 +194,8 @@ export default function PostDetailPage() {
                 setParentPost(null)
                 setRootPost(null)
                 setChildPosts([])
+                setSiblingPosts([])
+                setGraphPosts([])
             } finally {
                 setIsLoading(false)
             }
@@ -218,7 +264,37 @@ export default function PostDetailPage() {
         creationId: post.creationId,
         generationPlatform: post.generationPlatform,
         campaign: post.campaign,
+        autoDownload: Boolean(post.campaign?.directed),
     })
+
+    const lineageChain = useMemo(
+        () => buildLineageChain(post, parentPost, rootPost),
+        [parentPost, post, rootPost]
+    )
+
+    const graphStats = useMemo(
+        () =>
+            buildCommunityGraphStats({
+                current: post,
+                graphPosts: dedupeCommunityPosts([...graphPosts, ...lineageChain, ...childPosts]),
+                siblingPosts,
+                childPosts,
+            }),
+        [childPosts, graphPosts, lineageChain, post, siblingPosts]
+    )
+
+    const branchPreview = useMemo(
+        () =>
+            dedupeCommunityPosts([...graphPosts, ...siblingPosts, ...childPosts])
+                .filter((relatedPost) => relatedPost.id !== post.id)
+                .sort(
+                    (a, b) =>
+                        (a.remixDepth || 0) - (b.remixDepth || 0) ||
+                        b.createdAt.getTime() - a.createdAt.getTime()
+                )
+                .slice(0, 6),
+        [childPosts, graphPosts, post.id, siblingPosts]
+    )
 
     return (
         <main className="min-h-screen bg-[#020202] text-white selection:bg-purple-500/30">
@@ -451,12 +527,53 @@ export default function PostDetailPage() {
                         </button>
                     </div>
 
-                    {(parentPost || rootPost || childPosts.length > 0) && (
+                    {(parentPost || rootPost || childPosts.length > 0 || siblingPosts.length > 0 || branchPreview.length > 0) && (
                         <div className="mb-8 rounded-2xl bg-[#111113] border border-white/5 p-5 space-y-4">
                             <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-500">Remix Graph</p>
                                 <h3 className="mt-2 text-lg font-medium text-white">How this creation connects</h3>
                             </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Graph Size</p>
+                                    <p className="mt-2 text-2xl font-medium text-white">{graphStats.totalNodes}</p>
+                                </div>
+                                <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Max Depth</p>
+                                    <p className="mt-2 text-2xl font-medium text-white">{graphStats.maxDepth}</p>
+                                </div>
+                                <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Sibling Remixes</p>
+                                    <p className="mt-2 text-2xl font-medium text-white">{graphStats.siblingCount}</p>
+                                </div>
+                                <div className="rounded-2xl border border-white/8 bg-black/20 px-4 py-3">
+                                    <p className="text-[11px] uppercase tracking-[0.18em] text-zinc-500">Direct Children</p>
+                                    <p className="mt-2 text-2xl font-medium text-white">{graphStats.directChildCount}</p>
+                                </div>
+                            </div>
+
+                            {lineageChain.length > 0 && (
+                                <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                                    <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Lineage Path</p>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {lineageChain.map((node, index) => (
+                                            <Link
+                                                key={node.id}
+                                                href={`/community/${node.id}`}
+                                                className={cn(
+                                                    "rounded-full border px-3 py-2 text-xs transition-colors",
+                                                    node.id === post.id
+                                                        ? "border-lime-300/40 bg-lime-300/10 text-lime-100"
+                                                        : "border-white/10 bg-white/[0.03] text-zinc-300 hover:border-white/20"
+                                                )}
+                                            >
+                                                {index === 0 ? "Root" : index === lineageChain.length - 1 ? "Current" : "Branch"}: {node.title}
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-3">
                                 {rootPost && (
@@ -495,6 +612,70 @@ export default function PostDetailPage() {
                                                     </div>
                                                     <span className="text-xs uppercase tracking-[0.15em] text-zinc-500">Open</span>
                                                 </Link>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {siblingPosts.length > 0 && (
+                                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Sibling Remixes</p>
+                                        <div className="mt-3 space-y-2">
+                                            {siblingPosts.slice(0, 4).map((sibling) => (
+                                                <Link
+                                                    key={sibling.id}
+                                                    href={`/community/${sibling.id}`}
+                                                    className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 hover:border-white/15 transition-colors"
+                                                >
+                                                    <div>
+                                                        <p className="text-sm font-medium text-white">{sibling.title}</p>
+                                                        <p className="text-xs text-zinc-500">
+                                                            Depth {sibling.remixDepth || 0} • {(sibling.generationPlatform || "unknown").toUpperCase()}
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-xs uppercase tracking-[0.15em] text-zinc-500">Open</span>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {branchPreview.length > 0 && (
+                                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Branch Snapshot</p>
+                                        <div className="mt-3 grid gap-2">
+                                            {branchPreview.map((relatedPost) => (
+                                                <Link
+                                                    key={relatedPost.id}
+                                                    href={`/community/${relatedPost.id}`}
+                                                    className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-3 hover:border-white/15 transition-colors"
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <p className="text-sm font-medium text-white">{relatedPost.title}</p>
+                                                            <p className="mt-1 text-xs text-zinc-500">
+                                                                Depth {relatedPost.remixDepth || 0}
+                                                                {" • "}
+                                                                {(relatedPost.generationPlatform || "unknown").toUpperCase()}
+                                                                {relatedPost.model ? ` • ${relatedPost.model}` : ""}
+                                                            </p>
+                                                        </div>
+                                                        <span className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Open</span>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {graphStats.platformBreakdown.length > 0 && (
+                                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Platform Mix</p>
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {graphStats.platformBreakdown.map((entry) => (
+                                                <span
+                                                    key={entry.platform}
+                                                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-300"
+                                                >
+                                                    {entry.platform} · {entry.count}
+                                                </span>
                                             ))}
                                         </div>
                                     </div>
