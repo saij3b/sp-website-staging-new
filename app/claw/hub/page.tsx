@@ -3,7 +3,24 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, Download, Star, Zap, Image, Video, Wand2, LayoutGrid, Tag, Bot, ArrowUpRight } from "lucide-react";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import {
+  Search,
+  Download,
+  Star,
+  Zap,
+  Image,
+  Video,
+  Wand2,
+  Bot,
+  ArrowUpRight,
+  Rocket,
+  ShieldCheck,
+  Sparkles,
+  Activity,
+  Compass,
+  Clock3,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +29,18 @@ import { useAuth } from "@/context/auth-context";
 import { useClawLink } from "@/hooks/use-claw-link";
 import { db } from "@/lib/firebaseClient";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
+
+const displayFont = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-claw-display",
+});
+
+const monoFont = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  variable: "--font-claw-mono",
+});
 
 interface SkillEntry {
   name: string;
@@ -273,10 +302,10 @@ const CATEGORY_ICONS = {
 };
 
 const CATEGORY_COLORS = {
-  image: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-  video: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-  template: "text-orange-400 bg-orange-500/10 border-orange-500/20",
-  utility: "text-green-400 bg-green-500/10 border-green-500/20",
+  image: "text-cyan-200 border-cyan-300/40 bg-cyan-400/10",
+  video: "text-amber-100 border-amber-300/40 bg-amber-400/10",
+  template: "text-lime-100 border-lime-300/40 bg-lime-300/10",
+  utility: "text-rose-100 border-rose-300/40 bg-rose-400/10",
 };
 
 type Category = "all" | "image" | "video" | "template" | "utility";
@@ -299,12 +328,7 @@ export default function ClawHubPage() {
       return;
     }
 
-    const q = query(
-      collection(db, "jobs"),
-      where("uid", "==", user.uid),
-      where("source", "==", "claw"),
-      limit(20)
-    );
+    const q = query(collection(db, "jobs"), where("uid", "==", user.uid), where("source", "==", "claw"), limit(24));
 
     const unsubscribe = onSnapshot(
       q,
@@ -340,7 +364,7 @@ export default function ClawHubPage() {
             };
           })
           .sort((a, b) => b.createdMs - a.createdMs)
-          .slice(0, 6)
+          .slice(0, 8)
           .map(({ createdMs: _createdMs, ...rest }) => rest);
 
         setRecentJobs(jobs);
@@ -354,11 +378,12 @@ export default function ClawHubPage() {
   const filtered = useMemo(
     () =>
       BUILT_IN_SKILLS.filter((skill) => {
-        const text = search.toLowerCase();
+        const text = search.toLowerCase().trim();
         const matchesSearch =
           !text ||
           skill.name.includes(text) ||
-          skill.description.toLowerCase().includes(text);
+          skill.description.toLowerCase().includes(text) ||
+          skill.triggers.some((trigger) => trigger.toLowerCase().includes(text));
         const matchesCategory = activeCategory === "all" || skill.category === activeCategory;
         return matchesSearch && matchesCategory;
       }),
@@ -368,268 +393,333 @@ export default function ClawHubPage() {
   const featured = filtered.filter((s) => s.featured);
   const rest = filtered.filter((s) => !s.featured);
 
-  return (
-    <div className="min-h-screen bg-[#050508] px-4 py-12">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-violet-500/10 border border-violet-500/20 rounded-full px-4 py-1.5 text-violet-400 text-sm mb-4">
-            <LayoutGrid className="w-4 h-4" />
-            ClawHub
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-3">Claw Command Hub</h1>
-          <p className="text-neutral-400 max-w-lg mx-auto">
-            Pair Telegram once, route work between chat and Studio, and keep your latest Claw actions in one place.
-          </p>
-        </div>
+  const statusCounts = useMemo(() => {
+    const total = recentJobs.length;
+    const completed = recentJobs.filter((job) => job.status === "completed").length;
+    const failed = recentJobs.filter((job) => job.status === "failed" || job.status === "cancelled").length;
+    return { total, completed, failed };
+  }, [recentJobs]);
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-          <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-            <div className="flex items-start justify-between gap-4">
+  return (
+    <div className={cn("relative min-h-screen overflow-hidden bg-[#040506]", displayFont.variable, monoFont.variable)}>
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-32 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-cyan-500/15 blur-[140px]" />
+        <div className="absolute right-[-140px] top-[280px] h-[360px] w-[360px] rounded-full bg-lime-400/12 blur-[130px]" />
+        <div className="absolute left-[-160px] bottom-[-100px] h-[340px] w-[340px] rounded-full bg-amber-400/10 blur-[120px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)] [background-size:22px_22px] opacity-[0.08]" />
+      </div>
+
+      <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-10 md:pb-20 md:pt-14">
+        <section className="relative overflow-hidden rounded-[28px] border border-white/12 bg-white/[0.03] p-6 md:p-8 shadow-[0_30px_120px_rgba(0,0,0,0.65)]">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/[0.09] via-transparent to-transparent" />
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200/30 bg-cyan-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-100">
+                <Rocket className="h-3.5 w-3.5" />
+                Claw Control Deck
+              </div>
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-5xl [font-family:var(--font-claw-display)]">
+                Premium command center for your chat-native creation workflow
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-zinc-300 md:text-base">
+                Orchestrate Telegram creation, Director-mode handoff, and generation intelligence from one surface built for speed.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 md:min-w-[260px]">
+              <MetricCard label="Skills Ready" value={String(BUILT_IN_SKILLS.length)} tone="cyan" />
+              <MetricCard label="Recent Jobs" value={String(statusCounts.total)} tone="lime" />
+              <MetricCard label="Completed" value={String(statusCounts.completed)} tone="amber" />
+              <MetricCard label="Failures" value={String(statusCounts.failed)} tone="rose" />
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+          <div className="rounded-[24px] border border-white/10 bg-[#0a0c0f]/85 p-5 md:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">Connection</p>
-                <h2 className="mt-2 text-xl font-semibold text-white">
-                  {linkLoading ? "Checking Claw link..." : isLinked ? "Telegram linked" : "Telegram not linked"}
+                <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Connection Status</p>
+                <h2 className="mt-2 text-xl font-semibold text-white [font-family:var(--font-claw-display)]">
+                  {linkLoading ? "Verifying your Claw identity..." : isLinked ? "Telegram channel is authenticated" : "Link required to activate cross-surface handoff"}
                 </h2>
-                <p className="mt-2 text-sm text-neutral-400">
+                <p className="mt-2 max-w-2xl text-sm text-zinc-400">
                   {isLinked
-                    ? `Connected as ${link?.channelUserId || "unknown"} on ${link?.channelType || "telegram"}`
-                    : "Use /pair in Telegram and enter your 6-digit code to connect chat + web workflows."}
+                    ? `Connected as ${link?.channelUserId || "unknown"} on ${link?.channelType || "telegram"}.`
+                    : "Run /pair in Telegram, then enter your six-digit code to unlock command routing from Studio to chat."}
                 </p>
               </div>
-              <div className={cn(
-                "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider",
-                isLinked
-                  ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"
-                  : "border-white/10 bg-white/[0.03] text-neutral-400"
-              )}>
-                {isLinked ? "Linked" : "Unlinked"}
-              </div>
+              <span
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]",
+                  isLinked ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-100" : "border-zinc-500/30 bg-zinc-500/10 text-zinc-300"
+                )}
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                {isLinked ? "Linked" : "Not Linked"}
+              </span>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button asChild className="bg-violet-600 hover:bg-violet-500 text-white">
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button asChild className="h-10 rounded-xl bg-cyan-400 text-black hover:bg-cyan-300">
                 <a href="https://t.me/StudioXCbot" target="_blank" rel="noreferrer">
-                  <Bot className="w-4 h-4 mr-2" />
+                  <Bot className="mr-2 h-4 w-4" />
                   Open Telegram Bot
                 </a>
               </Button>
-              <Button asChild variant="outline" className="border-white/10 text-neutral-300 hover:text-white hover:bg-white/5">
-                <Link href="/claw/pair">
-                  {isLinked ? "Re-link Account" : "Pair Account"}
-                </Link>
+              <Button asChild variant="outline" className="h-10 rounded-xl border-white/15 bg-white/[0.02] text-zinc-200 hover:bg-white/[0.08]">
+                <Link href="/claw/pair">{isLinked ? "Re-link" : "Pair Account"}</Link>
               </Button>
-              <Button asChild variant="outline" className="border-white/10 text-neutral-300 hover:text-white hover:bg-white/5">
-                <Link href="/claw/schedule">Open Schedule</Link>
+              <Button asChild variant="outline" className="h-10 rounded-xl border-white/15 bg-white/[0.02] text-zinc-200 hover:bg-white/[0.08]">
+                <Link href="/claw/schedule">
+                  <Clock3 className="mr-2 h-4 w-4" />
+                  Schedule Jobs
+                </Link>
               </Button>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">Recent Claw Jobs</p>
-            <h3 className="mt-2 text-3xl font-semibold text-white">{recentJobs.length}</h3>
-            <p className="mt-2 text-sm text-neutral-400">Tracked actions from chat-driven generations.</p>
-            <Button asChild variant="outline" className="mt-4 w-full border-white/10 text-neutral-300 hover:text-white hover:bg-white/5">
-              <Link href="/claw/schedule">View Job Timeline</Link>
+          <div className="rounded-[24px] border border-white/10 bg-[#0a0c0f]/85 p-5 md:p-6">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Execution Pulse</p>
+            <h3 className="mt-2 text-3xl font-semibold text-white [font-family:var(--font-claw-display)]">{recentJobs.length}</h3>
+            <p className="mt-2 text-sm text-zinc-400">Recent chat-driven actions tracked across generation workflows.</p>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3 text-xs text-zinc-400">
+              <p>Command Layer: Telegram polling</p>
+              <p>Graph Sync: {isLinked ? "Active" : "Pending link"}</p>
+            </div>
+            <Button asChild variant="outline" className="mt-4 w-full rounded-xl border-white/15 bg-white/[0.02] text-zinc-200 hover:bg-white/[0.08]">
+              <Link href="/claw/schedule">Open Job Timeline</Link>
             </Button>
           </div>
-        </div>
+        </section>
 
         {(incomingPrompt || incomingAssetUrl) && (
-          <div className="mb-8 rounded-2xl border border-lime-300/25 bg-lime-300/10 p-5">
-            <p className="text-xs uppercase tracking-[0.2em] text-lime-200">Incoming From Studio</p>
+          <section className="mt-6 rounded-[24px] border border-lime-200/30 bg-lime-300/10 p-5 md:p-6">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-lime-100/90">Incoming from Studio</p>
             <p className="mt-2 text-sm text-lime-100/90">
-              Ready to continue this item in chat.
-              {incomingPrompt ? ` Prompt: "${incomingPrompt.slice(0, 90)}${incomingPrompt.length > 90 ? "..." : ""}"` : ""}
+              A creation is queued for chat handoff.
+              {incomingPrompt ? ` Prompt: “${incomingPrompt.slice(0, 100)}${incomingPrompt.length > 100 ? "..." : ""}”` : ""}
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button asChild className="bg-lime-300 text-black hover:bg-lime-200">
-                <a href="https://t.me/StudioXCbot" target="_blank" rel="noreferrer">
-                  Send To Telegram
-                </a>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button asChild className="h-10 rounded-xl bg-lime-200 text-black hover:bg-lime-100">
+                <a href="https://t.me/StudioXCbot" target="_blank" rel="noreferrer">Send to Telegram</a>
               </Button>
-              <Button asChild variant="outline" className="border-lime-200/30 text-lime-100 hover:bg-lime-200/10">
-                <Link href={`/studio?mode=remix&prompt=${encodeURIComponent(incomingPrompt || "")}&previewUrl=${encodeURIComponent(incomingAssetUrl || "")}&creationId=${encodeURIComponent(incomingCreationId || "")}`}>
-                  Open In Studio
+              <Button
+                asChild
+                variant="outline"
+                className="h-10 rounded-xl border-lime-100/40 bg-lime-200/5 text-lime-50 hover:bg-lime-200/15"
+              >
+                <Link
+                  href={`/studio?mode=remix&prompt=${encodeURIComponent(incomingPrompt || "")}&previewUrl=${encodeURIComponent(
+                    incomingAssetUrl || ""
+                  )}&creationId=${encodeURIComponent(incomingCreationId || "")}`}
+                >
+                  Open in Studio
                 </Link>
               </Button>
             </div>
-          </div>
+          </section>
         )}
 
         {recentJobs.length > 0 && (
-          <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm text-neutral-500 uppercase tracking-wider">Latest Bot Actions</h2>
-              <Link href="/claw/schedule" className="text-xs text-neutral-400 hover:text-white inline-flex items-center gap-1">
+          <section className="mt-6 rounded-[24px] border border-white/10 bg-[#0a0c0f]/85 p-5 md:p-6">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-sm uppercase tracking-[0.2em] text-zinc-500">Latest Bot Actions</h2>
+              <Link href="/claw/schedule" className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-white">
                 Full timeline
-                <ArrowUpRight className="w-3 h-3" />
+                <ArrowUpRight className="h-3 w-3" />
               </Link>
             </div>
-            <div className="mt-4 space-y-2">
+            <div className="mt-4 grid gap-2">
               {recentJobs.map((job) => (
-                <div key={job.id} className="rounded-xl border border-white/8 bg-black/25 px-3 py-2.5 flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm text-white truncate">{job.prompt}</p>
-                    <p className="text-xs text-neutral-500 mt-0.5">
-                      {job.model || "unknown model"}
-                      {job.createdAt ? ` • ${new Date(job.createdAt).toLocaleString()}` : ""}
-                    </p>
+                <article
+                  key={job.id}
+                  className="group rounded-2xl border border-white/8 bg-black/30 px-3 py-3 transition-all duration-300 hover:border-white/20 hover:bg-black/45"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm text-white">{job.prompt}</p>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        <span className="[font-family:var(--font-claw-mono)]">{job.model || "unknown model"}</span>
+                        {job.createdAt ? ` • ${new Date(job.createdAt).toLocaleString()}` : ""}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.16em]",
+                        job.status === "completed"
+                          ? "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+                          : job.status === "failed" || job.status === "cancelled"
+                            ? "border-rose-300/30 bg-rose-300/10 text-rose-100"
+                            : "border-amber-300/30 bg-amber-300/10 text-amber-100"
+                      )}
+                    >
+                      {job.status}
+                    </span>
                   </div>
-                  <span className={cn(
-                    "text-[10px] uppercase tracking-wider rounded-full border px-2 py-1 shrink-0",
-                    job.status === "completed"
-                      ? "border-green-400/30 bg-green-400/10 text-green-300"
-                      : job.status === "failed" || job.status === "cancelled"
-                        ? "border-red-400/30 bg-red-400/10 text-red-300"
-                        : "border-amber-400/30 bg-amber-400/10 text-amber-300"
-                  )}>
-                    {job.status}
-                  </span>
-                </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section className="mt-8">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-lg">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search skills, triggers, workflows..."
+                className="h-11 rounded-xl border-white/15 bg-white/[0.03] pl-10 text-white placeholder:text-zinc-500"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(["all", "image", "video", "template", "utility"] as const).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={cn(
+                    "rounded-full border px-3 py-1.5 text-xs uppercase tracking-[0.16em] transition-all",
+                    activeCategory === cat
+                      ? "border-cyan-300/40 bg-cyan-300/15 text-cyan-100"
+                      : "border-white/12 bg-white/[0.02] text-zinc-400 hover:border-white/25 hover:text-zinc-200"
+                  )}
+                >
+                  {cat}
+                </button>
               ))}
             </div>
           </div>
-        )}
+        </section>
 
-        {/* Search + Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search skills..."
-              className="pl-9 bg-white/[0.03] border-white/10 text-white placeholder:text-neutral-600"
-            />
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {(["all", "image", "video", "template", "utility"] as const).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-sm whitespace-nowrap border transition-colors",
-                  activeCategory === cat
-                    ? "bg-violet-600 border-violet-500 text-white"
-                    : "bg-white/[0.03] border-white/10 text-neutral-400 hover:text-white hover:bg-white/[0.05]"
-                )}
-              >
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Featured */}
         {featured.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-sm text-neutral-500 uppercase tracking-wider mb-4">Featured</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <section className="mt-8">
+            <div className="mb-4 flex items-center gap-2 text-zinc-300">
+              <Sparkles className="h-4 w-4 text-cyan-200" />
+              <h2 className="text-sm uppercase tracking-[0.24em]">Featured Workflows</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {featured.map((skill) => (
-                <SkillCard key={skill.name} skill={skill} />
+                <SkillCard key={skill.name} skill={skill} emphasis />
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* All */}
         {rest.length > 0 && (
-          <div>
-            <h2 className="text-sm text-neutral-500 uppercase tracking-wider mb-4">All Skills</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <section className="mt-8">
+            <div className="mb-4 flex items-center gap-2 text-zinc-300">
+              <Compass className="h-4 w-4 text-lime-200" />
+              <h2 className="text-sm uppercase tracking-[0.24em]">All Skills</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rest.map((skill) => (
                 <SkillCard key={skill.name} skill={skill} />
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         {filtered.length === 0 && (
-          <div className="text-center py-20 text-neutral-500">
-            No skills match &ldquo;{search}&rdquo;
-          </div>
+          <section className="mt-14 rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center text-zinc-400">
+            No skills match “{search}”. Try a broader keyword.
+          </section>
         )}
 
-        {/* Coming soon */}
-        <div className="mt-12 text-center">
-          <div className="inline-block bg-white/[0.02] border border-white/5 rounded-2xl px-8 py-6">
-            <Tag className="w-8 h-8 text-violet-400 mx-auto mb-3" />
-            <h3 className="text-white font-medium mb-2">Community Skills Coming Soon</h3>
-            <p className="text-neutral-500 text-sm max-w-sm">
-              Create and publish your own skills. Earn credits when others install them.
-            </p>
-          </div>
-        </div>
+        <section className="mt-12 rounded-[24px] border border-white/10 bg-gradient-to-r from-white/[0.06] via-white/[0.02] to-white/[0.04] p-6 text-center">
+          <Activity className="mx-auto h-7 w-7 text-cyan-200" />
+          <h3 className="mt-3 text-xl text-white [font-family:var(--font-claw-display)]">Community skill marketplace is next</h3>
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-zinc-400">
+            Curated skill packs, verified creators, and install analytics are being prepared for launch.
+          </p>
+        </section>
       </div>
     </div>
   );
 }
 
-function SkillCard({ skill }: { skill: SkillEntry }) {
+function MetricCard({ label, value, tone }: { label: string; value: string; tone: "cyan" | "lime" | "amber" | "rose" }) {
+  const toneClass = {
+    cyan: "border-cyan-300/30 bg-cyan-300/10 text-cyan-100",
+    lime: "border-lime-300/30 bg-lime-300/10 text-lime-100",
+    amber: "border-amber-300/30 bg-amber-300/10 text-amber-100",
+    rose: "border-rose-300/30 bg-rose-300/10 text-rose-100",
+  }[tone];
+
+  return (
+    <div className={cn("rounded-2xl border px-3 py-2", toneClass)}>
+      <p className="text-[10px] uppercase tracking-[0.18em] opacity-80">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-white [font-family:var(--font-claw-display)]">{value}</p>
+    </div>
+  );
+}
+
+function SkillCard({ skill, emphasis = false }: { skill: SkillEntry; emphasis?: boolean }) {
   const Icon = CATEGORY_ICONS[skill.category];
   const colorClass = CATEGORY_COLORS[skill.category];
 
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-4 flex flex-col gap-3 hover:bg-white/[0.05] transition-colors">
-      {/* Top row */}
-      <div className="flex items-start justify-between">
-        <div className={cn("w-9 h-9 rounded-lg border flex items-center justify-center", colorClass)}>
-          <Icon className="w-4 h-4" />
+    <article
+      className={cn(
+        "group relative overflow-hidden rounded-2xl border border-white/10 bg-[#090b0d]/95 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:border-white/25",
+        emphasis ? "shadow-[0_16px_55px_rgba(46,255,232,0.08)]" : ""
+      )}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-transparent opacity-70" />
+      <div className="relative flex h-full flex-col gap-3">
+        <div className="flex items-start justify-between">
+          <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl border", colorClass)}>
+            <Icon className="h-4 w-4" />
+          </div>
+          <Badge variant="outline" className="border-white/15 bg-white/[0.03] text-[10px] uppercase tracking-[0.16em] text-zinc-400">
+            v{skill.version}
+          </Badge>
         </div>
-        <Badge
-          variant="outline"
-          className="border-white/10 text-neutral-500 text-xs"
-        >
-          v{skill.version}
-        </Badge>
-      </div>
 
-      {/* Name + description */}
-      <div>
-        <h3 className="text-white font-medium text-sm mb-1">{skill.name}</h3>
-        <p className="text-neutral-500 text-xs leading-relaxed">{skill.description}</p>
-      </div>
-
-      {/* Triggers */}
-      <div className="flex flex-wrap gap-1">
-        {skill.triggers.slice(0, 2).map((t) => (
-          <span key={t} className="text-xs bg-white/[0.04] text-neutral-500 rounded-md px-2 py-0.5 font-mono">
-            {t}
-          </span>
-        ))}
-        {skill.triggers.length > 2 && (
-          <span className="text-xs text-neutral-600">+{skill.triggers.length - 2}</span>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div className="flex items-center justify-between mt-auto pt-1 border-t border-white/5">
-        <div className="flex items-center gap-3 text-xs text-neutral-600">
-          <span className="flex items-center gap-1">
-            <Star className="w-3 h-3" />
-            {skill.stars.toLocaleString()}
-          </span>
-          <span>{skill.costEstimate === "0" ? "Free" : `~${skill.costEstimate} cr`}</span>
+        <div>
+          <h3 className="text-sm font-semibold text-white [font-family:var(--font-claw-display)]">{skill.name}</h3>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-400">{skill.description}</p>
         </div>
-        <Button
-          size="sm"
-          disabled={skill.installed}
-          className={cn(
-            "h-7 text-xs px-3",
-            skill.installed
-              ? "bg-green-500/10 text-green-400 border border-green-500/20 cursor-default"
-              : "bg-violet-600 hover:bg-violet-500 text-white"
-          )}
-        >
-          {skill.installed ? (
-            <span className="flex items-center gap-1">
-              <Download className="w-3 h-3" /> Installed
+
+        <div className="flex flex-wrap gap-1">
+          {skill.triggers.slice(0, 2).map((t) => (
+            <span key={t} className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] text-zinc-400 [font-family:var(--font-claw-mono)]">
+              {t}
             </span>
-          ) : (
-            "Install"
-          )}
-        </Button>
+          ))}
+          {skill.triggers.length > 2 && <span className="text-[11px] text-zinc-500">+{skill.triggers.length - 2}</span>}
+        </div>
+
+        <div className="mt-auto flex items-center justify-between border-t border-white/10 pt-2">
+          <div className="flex items-center gap-3 text-[11px] text-zinc-500">
+            <span className="inline-flex items-center gap-1">
+              <Star className="h-3 w-3" />
+              {skill.stars.toLocaleString()}
+            </span>
+            <span>{skill.costEstimate === "0" ? "Free" : `~${skill.costEstimate} cr`}</span>
+          </div>
+          <Button
+            size="sm"
+            disabled={skill.installed}
+            className={cn(
+              "h-7 rounded-lg px-3 text-[11px]",
+              skill.installed
+                ? "cursor-default border border-emerald-300/30 bg-emerald-300/10 text-emerald-100"
+                : "bg-cyan-300 text-black hover:bg-cyan-200"
+            )}
+          >
+            {skill.installed ? (
+              <span className="inline-flex items-center gap-1">
+                <Download className="h-3 w-3" />
+                Installed
+              </span>
+            ) : (
+              "Install"
+            )}
+          </Button>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }

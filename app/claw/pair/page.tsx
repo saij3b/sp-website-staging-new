@@ -2,12 +2,25 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedRoute } from "@/components/protected-route";
-import { Loader2, CheckCircle2, XCircle, Bot } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Bot, Link2, ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+
+const displayFont = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-claw-display",
+});
+
+const monoFont = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  variable: "--font-claw-mono",
+});
 
 export default function ClawPairPage() {
   return (
@@ -68,155 +81,125 @@ function PairContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050508] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 mb-4">
-            <span className="text-3xl">🦞</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white mb-2">Link StudioX Claw</h1>
-          <p className="text-neutral-400 text-sm">
-            Enter the 6-digit code from your Telegram/Discord bot to connect your account.
-          </p>
-        </div>
+    <div className={cn("relative min-h-screen overflow-hidden bg-[#040506] px-4 py-10 md:py-14", displayFont.variable, monoFont.variable)}>
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-1/2 top-[-140px] h-[360px] w-[620px] -translate-x-1/2 rounded-full bg-cyan-500/15 blur-[140px]" />
+        <div className="absolute right-[-100px] top-[260px] h-[320px] w-[320px] rounded-full bg-lime-400/10 blur-[130px]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)] [background-size:22px_22px] opacity-[0.08]" />
+      </div>
 
-        {/* Card */}
-        <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-6">
+      <div className="relative mx-auto grid max-w-5xl grid-cols-1 gap-4 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="rounded-[24px] border border-white/12 bg-white/[0.03] p-6 md:p-8">
+          <div className="inline-flex items-center gap-2 rounded-full border border-cyan-200/30 bg-cyan-300/10 px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+            <Link2 className="h-3.5 w-3.5" />
+            Claw Pairing
+          </div>
+          <h1 className="mt-4 text-3xl font-semibold text-white md:text-4xl [font-family:var(--font-claw-display)]">
+            Link chat identity to StudioX in under ten seconds
+          </h1>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-300">
+            Pair once and route creations between web and Telegram instantly, with secure account binding.
+          </p>
+
+          <div className="mt-7 space-y-3">
+            {[
+              "Open Telegram bot",
+              "Run /pair to receive your code",
+              "Enter code here to activate shared context",
+            ].map((item, idx) => (
+              <div key={item} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full border border-cyan-200/40 bg-cyan-300/10 text-xs font-semibold text-cyan-100">
+                  {idx + 1}
+                </span>
+                <p className="text-sm text-zinc-200">{item}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-4 text-sm text-zinc-400">
+            <p className="inline-flex items-center gap-2 text-zinc-300">
+              <ShieldCheck className="h-4 w-4 text-emerald-300" />
+              Your code is short-lived and tied to your account token.
+            </p>
+          </div>
+        </section>
+
+        <section className="rounded-[24px] border border-white/12 bg-[#090c10]/90 p-6 md:p-8 shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
           {step === "enter" && (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm text-neutral-400 mb-2">Pairing Code</label>
+                <label className="mb-2 block text-xs uppercase tracking-[0.18em] text-zinc-500">Pairing Code</label>
                 <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
                   placeholder="ABC123"
                   maxLength={6}
                   className={cn(
-                    "text-center text-xl font-mono tracking-[0.3em] bg-white/[0.03] border-white/10",
-                    "text-white placeholder:text-neutral-600 h-12"
+                    "h-14 rounded-xl border-white/15 bg-white/[0.03] text-center text-2xl text-white placeholder:text-zinc-600",
+                    "tracking-[0.34em] [font-family:var(--font-claw-mono)]"
                   )}
                   autoFocus
                 />
-                <p className="text-xs text-neutral-500 mt-2">
-                  Type /pair in your Telegram bot to get a code
-                </p>
+                <p className="mt-2 text-xs text-zinc-500">Use /pair in Telegram bot to generate code.</p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                asChild
-                className="w-full border-white/10 text-neutral-300 hover:text-white hover:bg-white/5"
-              >
+
+              <Button type="button" variant="outline" asChild className="h-10 w-full rounded-xl border-white/15 bg-white/[0.02] text-zinc-200 hover:bg-white/[0.08]">
                 <a href={telegramBotUrl} target="_blank" rel="noreferrer">
+                  <Bot className="mr-2 h-4 w-4" />
                   Open Telegram Bot
                 </a>
               </Button>
-              <Button
-                type="submit"
-                disabled={code.length < 6}
-                className="w-full bg-violet-600 hover:bg-violet-500 text-white"
-              >
+
+              <Button type="submit" disabled={code.length < 6} className="h-11 w-full rounded-xl bg-cyan-300 text-black hover:bg-cyan-200">
                 Link Account
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </form>
           )}
 
           {step === "loading" && (
-            <div className="flex flex-col items-center gap-3 py-6">
-              <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
-              <p className="text-neutral-300 text-sm">Verifying code...</p>
+            <div className="flex flex-col items-center gap-3 py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-cyan-200" />
+              <p className="text-sm text-zinc-300">Verifying secure pairing...</p>
             </div>
           )}
 
           {step === "success" && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <CheckCircle2 className="w-12 h-12 text-green-400" />
+            <div className="flex flex-col items-center gap-4 py-3">
+              <CheckCircle2 className="h-12 w-12 text-emerald-300" />
               <div className="text-center">
-                <p className="text-white font-medium mb-1">Account linked!</p>
-                <p className="text-neutral-400 text-sm">
-                  Your StudioX account is now connected to{" "}
-                  <span className="text-violet-400 capitalize">{channelInfo?.channelType ?? "chat"}</span>.
-                </p>
-                <p className="text-neutral-500 text-xs mt-2">
-                  Go back to your bot and start creating 🎨
+                <p className="text-lg text-white [font-family:var(--font-claw-display)]">Account linked successfully</p>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Connected to <span className="capitalize text-cyan-100">{channelInfo?.channelType ?? "chat"}</span>.
                 </p>
               </div>
-              <div className="flex gap-3 w-full mt-2">
-                <Button
-                  asChild
-                  variant="outline"
-                  className="flex-1 border-white/10 text-neutral-300 hover:text-white hover:bg-white/5"
-                >
-                  <a href={telegramBotUrl} target="_blank" rel="noreferrer">
-                    Return to Telegram
-                  </a>
+              <div className="mt-1 flex w-full flex-col gap-2 sm:flex-row">
+                <Button asChild variant="outline" className="flex-1 rounded-xl border-white/15 bg-white/[0.02] text-zinc-200 hover:bg-white/[0.08]">
+                  <a href={telegramBotUrl} target="_blank" rel="noreferrer">Return to Telegram</a>
                 </Button>
-                <Button
-                  onClick={() => router.push("/studio")}
-                  className="flex-1 bg-violet-600 hover:bg-violet-500 text-white"
-                >
+                <Button onClick={() => router.push("/studio")} className="flex-1 rounded-xl bg-cyan-300 text-black hover:bg-cyan-200">
                   Open Studio
                 </Button>
               </div>
-              <Button
-                onClick={() => { setCode(""); setStep("enter"); }}
-                variant="outline"
-                className="w-full border-white/10 text-neutral-300 hover:text-white hover:bg-white/5"
-              >
-                Link Another
+              <Button onClick={() => { setCode(""); setStep("enter"); }} variant="ghost" className="text-zinc-400 hover:text-white">
+                Link another channel
               </Button>
             </div>
           )}
 
           {step === "error" && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <XCircle className="w-12 h-12 text-red-400" />
+            <div className="flex flex-col items-center gap-4 py-3">
+              <XCircle className="h-12 w-12 text-rose-300" />
               <div className="text-center">
-                <p className="text-white font-medium mb-1">Pairing failed</p>
-                <p className="text-neutral-400 text-sm">{errorMsg}</p>
+                <p className="text-lg text-white [font-family:var(--font-claw-display)]">Pairing failed</p>
+                <p className="mt-1 text-sm text-zinc-400">{errorMsg}</p>
               </div>
-              <Button
-                onClick={() => { setStep("enter"); setErrorMsg(""); }}
-                className="w-full bg-violet-600 hover:bg-violet-500 text-white"
-              >
-                Try Again
+              <Button onClick={() => { setStep("enter"); setErrorMsg(""); }} className="w-full rounded-xl bg-cyan-300 text-black hover:bg-cyan-200">
+                Try again
               </Button>
             </div>
           )}
-        </div>
-
-        {/* How it works */}
-        {step === "enter" && (
-          <div className="mt-6 space-y-3">
-            <p className="text-xs text-neutral-500 text-center uppercase tracking-wider">How it works</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { step: "1", label: "Open your bot", desc: "Telegram, Discord, or Slack" },
-                { step: "2", label: "Type /pair", desc: "Get a 6-digit code" },
-                { step: "3", label: "Enter code here", desc: "Your account is linked" },
-              ].map((item) => (
-                <div key={item.step} className="bg-white/[0.02] border border-white/5 rounded-xl p-3 text-center">
-                  <div className="w-6 h-6 rounded-full bg-violet-500/20 text-violet-400 text-xs font-bold flex items-center justify-center mx-auto mb-2">
-                    {item.step}
-                  </div>
-                  <p className="text-white text-xs font-medium">{item.label}</p>
-                  <p className="text-neutral-500 text-xs mt-0.5">{item.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Supported channels */}
-        {step === "enter" && (
-          <div className="mt-4 flex items-center justify-center gap-4">
-            <Bot className="w-4 h-4 text-neutral-600" />
-            <span className="text-xs text-neutral-600">
-              Works with Telegram · Discord · Slack · WhatsApp
-            </span>
-          </div>
-        )}
+        </section>
       </div>
     </div>
   );
