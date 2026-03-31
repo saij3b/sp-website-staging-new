@@ -10,13 +10,30 @@ import { CommunityGrid } from "@/components/community-grid"
 import { UploadModal } from "@/components/upload-modal"
 
 import { useAuth } from "@/context/auth-context"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 
 function CommunityContent() {
   const headerRef = useRef<HTMLDivElement>(null)
   const [isUploadOpen, setIsUploadOpen] = useState(false)
+  const [searchValue, setSearchValue] = useState("")
   const { user } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const activeFilter = (searchParams.get("filter") || "").toLowerCase()
+
+  const updateQuery = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString())
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value) params.delete(key)
+      else params.set(key, value)
+    })
+    const query = params.toString()
+    router.replace(query ? `/community?${query}` : "/community")
+  }
+
+  const applySearch = () => {
+    updateQuery({ q: searchValue.trim() || null })
+  }
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -41,6 +58,10 @@ function CommunityContent() {
 
     return () => ctx.revert()
   }, [])
+
+  useEffect(() => {
+    setSearchValue(searchParams.get("q") || "")
+  }, [searchParams])
 
   return (
     <main ref={headerRef} className="min-h-screen bg-[#020202] text-white selection:bg-purple-500/30 overflow-x-hidden">
@@ -93,13 +114,47 @@ function CommunityContent() {
               <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500 group-hover:text-white transition-colors duration-300" />
               <Input
                 placeholder="Search the gallery..."
+                value={searchValue}
+                onChange={(event) => setSearchValue(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    applySearch()
+                  }
+                }}
                 className="pl-12 h-14 bg-white/[0.03] border-white/5 rounded-full text-base text-white placeholder:text-neutral-600 focus:bg-white/[0.08] focus:border-white/10 transition-all duration-300 shadow-xl"
               />
             </div>
-            <Button variant="outline" size="icon" className="h-14 w-14 rounded-full border-white/5 bg-white/[0.03] hover:bg-white/[0.08] hover:text-white hover:border-white/10 transition-all duration-300">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={applySearch}
+              className="h-14 w-14 rounded-full border-white/5 bg-white/[0.03] hover:bg-white/[0.08] hover:text-white hover:border-white/10 transition-all duration-300"
+            >
               <Filter className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+
+        <div className="mb-8 flex flex-wrap gap-2 hero-controls">
+          {[
+            { id: "directed", label: "Directed" },
+            { id: "remixable", label: "Open to Remix" },
+            { id: "branching", label: "Popular Branches" },
+            { id: "telegram", label: "Telegram" },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => updateQuery({ filter: activeFilter === item.id ? null : item.id })}
+              className={
+                activeFilter === item.id
+                  ? "rounded-full border border-lime-300/40 bg-lime-300/10 px-4 py-2 text-xs font-semibold tracking-wide text-lime-100"
+                  : "rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs font-semibold tracking-wide text-zinc-400 hover:border-white/20 hover:text-white"
+              }
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
 
         {}

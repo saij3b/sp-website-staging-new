@@ -18,6 +18,7 @@ export interface ExportPackPayload {
   creationId?: string
   generationPlatform?: string
   campaign?: CommunityCampaignMeta
+  presetIds?: string[]
   autoDownload?: boolean
 }
 
@@ -30,6 +31,14 @@ export const EXPORT_PACK_PRESETS: ExportPackPreset[] = [
 ]
 
 const PRESET_LOOKUP = new Map(EXPORT_PACK_PRESETS.map((preset) => [preset.id, preset]))
+
+export function normalizeExportPresetIds(raw?: string | string[] | null): string[] {
+  const values = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : []
+  const ids = values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0 && PRESET_LOOKUP.has(value))
+  return Array.from(new Set(ids))
+}
 
 export function getRecommendedExportPresets(campaign?: CommunityCampaignMeta): ExportPackPreset[] {
   const platform = campaign?.platform?.toLowerCase() || ""
@@ -55,6 +64,23 @@ export function getRecommendedExportPresets(campaign?: CommunityCampaignMeta): E
     .filter((preset): preset is ExportPackPreset => Boolean(preset))
 }
 
+export function resolveExportPackPresets(input: {
+  type: "image" | "video"
+  campaign?: CommunityCampaignMeta
+  presetIds?: string[] | string
+}): ExportPackPreset[] {
+  if (input.type === "video") return []
+
+  const selectedPresetIds = normalizeExportPresetIds(input.presetIds || input.campaign?.presetIds || [])
+  if (selectedPresetIds.length > 0) {
+    return selectedPresetIds
+      .map((id) => PRESET_LOOKUP.get(id))
+      .filter((preset): preset is ExportPackPreset => Boolean(preset))
+  }
+
+  return EXPORT_PACK_PRESETS
+}
+
 export function buildExportPackHref(payload: ExportPackPayload): string {
   const params = new URLSearchParams()
   params.set("assetUrl", payload.assetUrl)
@@ -71,6 +97,8 @@ export function buildExportPackHref(payload: ExportPackPayload): string {
   if (payload.campaign?.style) params.set("campaignStyle", payload.campaign.style)
   if (payload.campaign?.variationCount) params.set("campaignVariationCount", String(payload.campaign.variationCount))
   if (payload.campaign?.brief) params.set("campaignBrief", payload.campaign.brief)
+  const presetIds = normalizeExportPresetIds(payload.presetIds || payload.campaign?.presetIds || [])
+  if (presetIds.length > 0) params.set("campaignPresetIds", presetIds.join(","))
   if (payload.campaign?.directed) params.set("campaignDirected", "1")
   if (payload.autoDownload) params.set("autoDownload", "1")
 

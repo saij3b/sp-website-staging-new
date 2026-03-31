@@ -80,6 +80,7 @@ export interface CommunityCampaignMeta {
   style?: string
   variationCount?: number
   brief?: string
+  presetIds?: string[]
 }
 
 export interface CommunityPost {

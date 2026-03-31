@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Loader2, CheckCircle2, XCircle, Bot } from "lucide-react";
@@ -22,10 +22,19 @@ type Step = "enter" | "loading" | "success" | "error";
 function PairContent() {
   const { user } = useAuth();
   const router = useRouter();
-  const [code, setCode] = useState("");
+  const searchParams = useSearchParams();
+  const [code, setCode] = useState(searchParams.get("code")?.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) || "");
   const [step, setStep] = useState<Step>("enter");
   const [errorMsg, setErrorMsg] = useState("");
   const [channelInfo, setChannelInfo] = useState<{ channelType: string; channelUserId: string } | null>(null);
+  const telegramBotUrl = useMemo(() => "https://t.me/StudioXCbot", []);
+
+  useEffect(() => {
+    const queryCode = searchParams.get("code");
+    if (!queryCode) return;
+    const normalized = queryCode.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+    if (normalized.length > 0) setCode(normalized);
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +103,16 @@ function PairContent() {
                 </p>
               </div>
               <Button
+                type="button"
+                variant="outline"
+                asChild
+                className="w-full border-white/10 text-neutral-300 hover:text-white hover:bg-white/5"
+              >
+                <a href={telegramBotUrl} target="_blank" rel="noreferrer">
+                  Open Telegram Bot
+                </a>
+              </Button>
+              <Button
                 type="submit"
                 disabled={code.length < 6}
                 className="w-full bg-violet-600 hover:bg-violet-500 text-white"
@@ -125,19 +144,28 @@ function PairContent() {
               </div>
               <div className="flex gap-3 w-full mt-2">
                 <Button
+                  asChild
+                  variant="outline"
+                  className="flex-1 border-white/10 text-neutral-300 hover:text-white hover:bg-white/5"
+                >
+                  <a href={telegramBotUrl} target="_blank" rel="noreferrer">
+                    Return to Telegram
+                  </a>
+                </Button>
+                <Button
                   onClick={() => router.push("/studio")}
                   className="flex-1 bg-violet-600 hover:bg-violet-500 text-white"
                 >
                   Open Studio
                 </Button>
-                <Button
-                  onClick={() => { setCode(""); setStep("enter"); }}
-                  variant="outline"
-                  className="flex-1 border-white/10 text-neutral-300 hover:text-white hover:bg-white/5"
-                >
-                  Link Another
-                </Button>
               </div>
+              <Button
+                onClick={() => { setCode(""); setStep("enter"); }}
+                variant="outline"
+                className="w-full border-white/10 text-neutral-300 hover:text-white hover:bg-white/5"
+              >
+                Link Another
+              </Button>
             </div>
           )}
 

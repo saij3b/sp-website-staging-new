@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Download, Loader2, Maximize2, Package, Share, Sparkles, Wand2, Settings2 } from "lucide-react";
+import { Bot, Download, Loader2, Maximize2, Package, Share, Sparkles, Wand2, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UploadModal } from "@/components/upload-modal";
 import { MediaRenderer } from "@/components/media-renderer";
 import { ASSET_BASE } from "@/lib/assets";
-import { buildExportPackHref } from "@/lib/export-pack";
+import { buildExportPackHref, normalizeExportPresetIds } from "@/lib/export-pack";
 import type { CommunityCampaignMeta } from "@/lib/types";
 
 export interface GenerationItem {
@@ -55,6 +55,7 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
     } | null>(null);
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
+    const autoExportDoneRef = useRef<string | null>(null);
     const activePlatform = activeGeneration?.generationPlatform || activeGeneration?.settings?.provider || "poyo";
 
     const getFileExtension = (url: string, type: string): string => {
@@ -141,7 +142,15 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
 
     const buildCampaignMeta = (): CommunityCampaignMeta | undefined => {
         const campaign = activeGeneration?.settings?.campaign;
-        if (campaign) return campaign;
+        const presetIds = normalizeExportPresetIds(
+            activeGeneration?.settings?.campaign_preset_ids || campaign?.presetIds || []
+        );
+        if (campaign) {
+            return {
+                ...campaign,
+                presetIds: campaign.presetIds || (presetIds.length > 0 ? presetIds : undefined),
+            };
+        }
 
         const goal = activeGeneration?.settings?.director_goal;
         const platform = activeGeneration?.settings?.director_platform;
@@ -158,7 +167,8 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
             platform,
             style,
             variationCount: variationCount ? Number(variationCount) : undefined,
-            brief: activeGeneration?.prompt,
+            brief: activeGeneration?.settings?.campaign_brief || activeGeneration?.prompt,
+            presetIds: presetIds.length > 0 ? presetIds : undefined,
         };
     };
 
@@ -174,10 +184,30 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
             creationId,
             generationPlatform: activePlatform,
             campaign,
+            presetIds: campaign?.presetIds,
             autoDownload: Boolean(campaign?.directed),
         });
         window.open(href, "_blank");
     };
+
+    const openClawHub = (url: string, creationId?: string) => {
+        const params = new URLSearchParams();
+        if (activeGeneration?.prompt) params.set("prompt", activeGeneration.prompt);
+        if (url) params.set("assetUrl", url);
+        if (creationId) params.set("creationId", creationId);
+        if (activeGeneration?.taskId) params.set("taskId", activeGeneration.taskId);
+        if (activePlatform) params.set("generationPlatform", activePlatform);
+        window.location.href = `/claw/hub?${params.toString()}`;
+    };
+
+    useEffect(() => {
+        if (!activeGeneration || activeGeneration.status !== "completed" || !activeGeneration.src) return;
+        if (activeGeneration.settings?.auto_export_pack !== "1") return;
+        if (autoExportDoneRef.current === activeGeneration.id) return;
+
+        autoExportDoneRef.current = activeGeneration.id;
+        openExportPack(activeGeneration.src, activeGeneration.type, activeGeneration.creationId);
+    }, [activeGeneration]);
 
     const getAspectRatioClass = (ratio: string) => {
         switch (ratio) {
@@ -336,6 +366,16 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
                                                         <Share className="w-3 h-3 sm:w-3.5 sm:h-3.5 group-hover/pbtn:-translate-y-[1px] transition-transform" />
                                                         <span className="font-bold tracking-tight text-[10px] sm:text-[11px] whitespace-nowrap">Publish</span>
                                                     </button>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openClawHub(src, activeGeneration.creationIds?.[idx] || activeGeneration.creationId);
+                                                        }}
+                                                        title="Send to Claw"
+                                                        className="bg-black/70 hover:bg-black/90 text-white backdrop-blur-2xl h-9.5 w-9.5 sm:h-10 sm:w-10 rounded-lg sm:rounded-xl shadow-2xl border border-white/10 flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 shrink-0 group/cbtn"
+                                                    >
+                                                        <Bot className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-300 group-hover/cbtn:-translate-y-[1px] transition-transform" />
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -432,6 +472,13 @@ export function StudioCenterCanvas({ activeGeneration, mode, isGenerating, aspec
                                                 >
                                                     <Share className="w-4 h-4 sm:w-5 sm:h-5 group-hover/btn:-translate-y-0.5 transition-transform duration-300" />
                                                     <span className="font-bold tracking-tight text-xs sm:text-sm lg:text-[13px]">Publish</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => openClawHub(activeGeneration.src || "", activeGeneration.creationId)}
+                                                    className="bg-black/60 hover:bg-black/80 text-white backdrop-blur-2xl h-10 w-10 sm:h-12 sm:w-12 lg:h-11 lg:w-11 rounded-xl sm:rounded-2xl shadow-2xl border border-white/10 flex items-center justify-center pointer-events-auto transition-all duration-300 hover:scale-[1.05] active:scale-[0.95] group/btn"
+                                                    title="Send to Claw"
+                                                >
+                                                    <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-300 group-hover/btn:-translate-y-0.5 transition-transform duration-300" />
                                                 </button>
                                             </div>
                                         </div>

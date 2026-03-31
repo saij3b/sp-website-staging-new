@@ -18,6 +18,7 @@ import { ASSET_BASE } from "@/lib/assets";
 import { chooseProvider, type StudioProvider } from "@/lib/provider-routing";
 import { VIDEO_MODELS } from "@/lib/model-config";
 import { persistStudioGeneration } from "@/lib/studio-generations";
+import { normalizeExportPresetIds } from "@/lib/export-pack";
 
 interface NormalizedJobStatus {
   status: "processing" | "completed" | "failed";
@@ -229,7 +230,13 @@ function StudioLayout() {
   }, []);
 
   const buildCampaignMeta = (prompt: string, settings: any) => {
-    if (settings?.campaign) return settings.campaign;
+    const presetIds = normalizeExportPresetIds(settings?.campaign_preset_ids || settings?.campaign?.presetIds || []);
+    if (settings?.campaign) {
+      return {
+        ...settings.campaign,
+        presetIds: settings.campaign.presetIds || presetIds,
+      };
+    }
 
     const goal = settings?.director_goal || undefined;
     const platform = settings?.director_platform || undefined;
@@ -248,6 +255,7 @@ function StudioLayout() {
       style,
       variationCount,
       brief: settings?.campaign_brief || prompt,
+      presetIds: presetIds.length > 0 ? presetIds : undefined,
     };
   };
 

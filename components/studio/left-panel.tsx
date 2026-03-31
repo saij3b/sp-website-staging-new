@@ -35,6 +35,7 @@ import {
     type ModelConfig,
 } from "@/lib/model-config";
 import { chooseProvider } from "@/lib/provider-routing";
+import { EXPORT_PACK_PRESETS, normalizeExportPresetIds } from "@/lib/export-pack";
 
 interface StudioLeftPanelProps {
     onGenerate: (prompt: string, settings: any) => void;
@@ -79,6 +80,8 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
     const urlCampaignVariationCount = searchParams?.get("campaignVariationCount") || "";
     const urlCampaignBrief = searchParams?.get("campaignBrief") || "";
     const urlCampaignDirected = searchParams?.get("campaignDirected") || "";
+    const urlCampaignPresetIds = searchParams?.get("campaignPresetIds") || "";
+    const urlAutoExportPack = searchParams?.get("autoExportPack") || "";
 
     const urlCreationId = searchParams?.get("creationId") || "";
     const urlRootCreationId = searchParams?.get("rootCreationId") || "";
@@ -123,6 +126,22 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
     const [negativePrompt, setNegativePrompt] = useState<string>("");
     const [videoMode, setVideoMode] = useState<string>("normal");
     const [characterOrientation, setCharacterOrientation] = useState<string>("image");
+    const [directorModeEnabled, setDirectorModeEnabled] = useState<boolean>(() =>
+        urlCampaignDirected === "1" ||
+        Boolean(urlCampaignGoal || urlCampaignPlatform || urlCampaignStyle || urlCampaignVariationCount || urlCampaignBrief || urlCampaignPresetIds)
+    );
+    const [directorGoal, setDirectorGoal] = useState<string>(urlCampaignGoal);
+    const [directorPlatform, setDirectorPlatform] = useState<string>(urlCampaignPlatform || "instagram");
+    const [directorStyle, setDirectorStyle] = useState<string>(urlCampaignStyle || "Cinematic");
+    const [directorBrief, setDirectorBrief] = useState<string>(urlCampaignBrief || "");
+    const [directorVariations, setDirectorVariations] = useState<number>(() => {
+        const parsed = Number.parseInt(urlCampaignVariationCount, 10);
+        return Number.isNaN(parsed) ? 4 : Math.min(8, Math.max(1, parsed));
+    });
+    const [directorPresetIds, setDirectorPresetIds] = useState<string[]>(() =>
+        normalizeExportPresetIds(urlCampaignPresetIds)
+    );
+    const [autoExportPack, setAutoExportPack] = useState<boolean>(urlAutoExportPack === "1");
 
     const [selectedModel, setSelectedModel] = useState(() => {
         if (urlMode === 'video' || (urlMode === 'remix' && urlRemixType === 'video')) return AI_VIDEO_MODELS[0];
@@ -187,6 +206,41 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
         if (res && res !== resolution) {
             setResolution(res);
         }
+        const directed = searchParams?.get("campaignDirected");
+        if (directed === "1") {
+            setDirectorModeEnabled(true);
+        }
+        const goal = searchParams?.get("campaignGoal");
+        if (goal !== null) {
+            setDirectorGoal(goal);
+        }
+        const platform = searchParams?.get("campaignPlatform");
+        if (platform !== null && platform.length > 0) {
+            setDirectorPlatform(platform);
+        }
+        const style = searchParams?.get("campaignStyle");
+        if (style !== null && style.length > 0) {
+            setDirectorStyle(style);
+        }
+        const brief = searchParams?.get("campaignBrief");
+        if (brief !== null) {
+            setDirectorBrief(brief);
+        }
+        const variationText = searchParams?.get("campaignVariationCount");
+        if (variationText !== null && variationText.length > 0) {
+            const parsedVariation = Number.parseInt(variationText, 10);
+            if (!Number.isNaN(parsedVariation)) {
+                setDirectorVariations(Math.min(8, Math.max(1, parsedVariation)));
+            }
+        }
+        const presetIds = searchParams?.get("campaignPresetIds");
+        if (presetIds !== null) {
+            setDirectorPresetIds(normalizeExportPresetIds(presetIds));
+        }
+        const autoExportParam = searchParams?.get("autoExportPack");
+        if (autoExportParam !== null) {
+            setAutoExportPack(autoExportParam === "1");
+        }
     }, [searchParams]);
 
     useEffect(() => {
@@ -243,6 +297,20 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
 
     const handleGenerate = () => {
         let parameters: any = {};
+        const urlPresetIds = normalizeExportPresetIds(urlCampaignPresetIds);
+        const activeDirectorPresets = directorPresetIds.length > 0 ? directorPresetIds : urlPresetIds;
+        const shouldUseDirectorMode =
+            directorModeEnabled ||
+            urlCampaignDirected === "1" ||
+            Boolean(urlCampaignGoal || urlCampaignPlatform || urlCampaignStyle || urlCampaignVariationCount || urlCampaignBrief || activeDirectorPresets.length);
+        const resolvedDirectorGoal = directorGoal || urlCampaignGoal || "";
+        const resolvedDirectorPlatform = directorPlatform || urlCampaignPlatform || "";
+        const resolvedDirectorStyle = directorStyle || urlCampaignStyle || "";
+        const resolvedDirectorBrief = directorBrief || urlCampaignBrief || prompt;
+        const parsedUrlVariations = Number.parseInt(urlCampaignVariationCount, 10);
+        const fallbackVariationCount = Number.isNaN(parsedUrlVariations) ? 4 : parsedUrlVariations;
+        const resolvedDirectorVariations = Math.min(8, Math.max(1, directorVariations || fallbackVariationCount));
+        const resolvedAutoExportPack = autoExportPack || urlAutoExportPack === "1";
 
         if (sourceFile) {
             parameters.sourceFile = sourceFile;
@@ -268,12 +336,18 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
             const ic = cfg as ImageModelConfig;
             parameters.prompt = prompt;
             parameters.size = aspectRatio;
-            if (ic.supportsN) parameters.n = imageCount;
+            if (ic.supportsN) {
+                const directorN = Math.min(ic.maxN, resolvedDirectorVariations);
+                parameters.n = shouldUseDirectorMode ? directorN : imageCount;
+            }
             if (ic.supportsResolution) parameters.resolution = resolution;
             if (ic.supportsOutputFormat) parameters.output_format = outputFormat;
         }
         else if (creationMode === "remix") {
-            parameters.n = imageCount;
+            const remixModelConfig = cfg?.type === "image" ? (cfg as ImageModelConfig) : null;
+            const remixMaxN = remixModelConfig?.supportsN ? remixModelConfig.maxN : 8;
+            const remixDirectorN = Math.min(remixMaxN, resolvedDirectorVariations);
+            parameters.n = shouldUseDirectorMode ? remixDirectorN : imageCount;
             parameters.prompt = prompt;
             parameters.image_weight = remixStrength / 100;
             parameters.size = aspectRatio;
@@ -327,12 +401,16 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                     wantsRemix: creationMode === "remix" || Boolean(creationId),
                     hasReferenceImage: Boolean(sourceFile || startImageFile || previewUrl),
                 }),
-            campaign_brief: urlCampaignBrief || undefined,
-            campaign_directed: urlCampaignDirected || undefined,
-            director_goal: urlCampaignGoal || undefined,
-            director_platform: urlCampaignPlatform || undefined,
-            director_style: urlCampaignStyle || undefined,
-            director_variations: urlCampaignVariationCount || undefined,
+            campaign_brief: shouldUseDirectorMode ? (resolvedDirectorBrief || undefined) : undefined,
+            campaign_directed: shouldUseDirectorMode ? "1" : undefined,
+            campaign_preset_ids: shouldUseDirectorMode && activeDirectorPresets.length > 0
+                ? activeDirectorPresets.join(",")
+                : undefined,
+            auto_export_pack: shouldUseDirectorMode && resolvedAutoExportPack ? "1" : undefined,
+            director_goal: shouldUseDirectorMode ? (resolvedDirectorGoal || undefined) : undefined,
+            director_platform: shouldUseDirectorMode ? (resolvedDirectorPlatform || undefined) : undefined,
+            director_style: shouldUseDirectorMode ? (resolvedDirectorStyle || undefined) : undefined,
+            director_variations: shouldUseDirectorMode ? String(resolvedDirectorVariations) : undefined,
             sourceFile: sourceFile || undefined,
             sourceVideo: sourceVideo || undefined,
             aspectRatio,
@@ -455,6 +533,12 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
     }
 
     const maxN = imgCfg?.maxN || 4;
+
+    useEffect(() => {
+        if (directorVariations > maxN) {
+            setDirectorVariations(maxN);
+        }
+    }, [directorVariations, maxN]);
 
 
     return (
@@ -658,6 +742,115 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                                 </div>
                             </div>
                         )}
+
+                        {}
+                        <div className="space-y-2.5 shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                            <label className="text-[10px] font-medium text-zinc-500 tracking-[0.2em] uppercase flex items-center gap-2 px-1">
+                                <Sparkles className="w-3.5 h-3.5 text-zinc-600" /> Director Mode
+                            </label>
+                            <div className="rounded-[20px] border border-white/[0.08] bg-white/[0.02] p-4 space-y-4">
+                                <button
+                                    onClick={() => setDirectorModeEnabled((prev) => !prev)}
+                                    className="w-full flex items-center justify-between rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2.5 hover:bg-black/45 transition-colors"
+                                >
+                                    <div className="text-left">
+                                        <p className="text-[12px] font-semibold text-zinc-100">Campaign Director</p>
+                                        <p className="text-[10px] text-zinc-500">Guides generation + export pack strategy</p>
+                                    </div>
+                                    <div className={cn("w-10 h-5.5 rounded-full transition-all duration-300 relative", directorModeEnabled ? "bg-lime-500/80" : "bg-zinc-700")}>
+                                        <div className={cn("absolute top-[3px] w-4 h-4 rounded-full bg-white transition-all duration-300 shadow-xl", directorModeEnabled ? "left-[19px]" : "left-[3px]")} />
+                                    </div>
+                                </button>
+
+                                {directorModeEnabled && (
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <input
+                                                value={directorGoal}
+                                                onChange={(event) => setDirectorGoal(event.target.value)}
+                                                placeholder="Goal (e.g. launch teaser)"
+                                                className="h-11 rounded-xl border border-white/[0.08] bg-black/30 px-3 text-[12px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-white/20"
+                                            />
+                                            <input
+                                                value={directorPlatform}
+                                                onChange={(event) => setDirectorPlatform(event.target.value)}
+                                                placeholder="Primary platform"
+                                                className="h-11 rounded-xl border border-white/[0.08] bg-black/30 px-3 text-[12px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-white/20"
+                                            />
+                                        </div>
+                                        <input
+                                            value={directorStyle}
+                                            onChange={(event) => setDirectorStyle(event.target.value)}
+                                            placeholder="Style direction"
+                                            className="h-11 w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 text-[12px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-white/20"
+                                        />
+                                        <textarea
+                                            value={directorBrief}
+                                            onChange={(event) => setDirectorBrief(event.target.value)}
+                                            placeholder="Campaign brief (optional)"
+                                            className="min-h-[74px] w-full rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2.5 text-[12px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:border-white/20 resize-none"
+                                        />
+
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between text-[10px] text-zinc-500 uppercase tracking-[0.16em]">
+                                                <span>Director Variations</span>
+                                                <span className="text-zinc-300">{directorVariations}</span>
+                                            </div>
+                                            <Slider
+                                                min={1}
+                                                max={8}
+                                                step={1}
+                                                value={[directorVariations]}
+                                                onValueChange={(value) => setDirectorVariations(value[0] || 1)}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] text-zinc-500 uppercase tracking-[0.16em]">Export Presets</p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {EXPORT_PACK_PRESETS.map((preset) => {
+                                                    const isActive = directorPresetIds.includes(preset.id)
+                                                    return (
+                                                        <button
+                                                            key={preset.id}
+                                                            onClick={() =>
+                                                                setDirectorPresetIds((prev) =>
+                                                                    prev.includes(preset.id)
+                                                                        ? prev.filter((id) => id !== preset.id)
+                                                                        : [...prev, preset.id]
+                                                                )
+                                                            }
+                                                            className={cn(
+                                                                "rounded-xl border px-2.5 py-2 text-left transition-colors",
+                                                                isActive
+                                                                    ? "border-lime-300/40 bg-lime-300/10 text-lime-100"
+                                                                    : "border-white/[0.08] bg-black/30 text-zinc-300 hover:border-white/[0.16]"
+                                                            )}
+                                                        >
+                                                            <p className="text-[11px] font-semibold leading-tight">{preset.label}</p>
+                                                            <p className="mt-0.5 text-[10px] text-zinc-500">{preset.width}x{preset.height}</p>
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => setAutoExportPack((prev) => !prev)}
+                                            className="w-full flex items-center justify-between rounded-xl border border-white/[0.08] bg-black/30 px-3 py-2.5 hover:bg-black/45 transition-colors"
+                                        >
+                                            <div className="text-left">
+                                                <p className="text-[12px] font-semibold text-zinc-100">Auto Export Pack</p>
+                                                <p className="text-[10px] text-zinc-500">Open export pack immediately after completion</p>
+                                            </div>
+                                            <div className={cn("w-10 h-5.5 rounded-full transition-all duration-300 relative", autoExportPack ? "bg-lime-500/80" : "bg-zinc-700")}>
+                                                <div className={cn("absolute top-[3px] w-4 h-4 rounded-full bg-white transition-all duration-300 shadow-xl", autoExportPack ? "left-[19px]" : "left-[3px]")} />
+                                            </div>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
                         {}
                         {hasAspectRatio && (

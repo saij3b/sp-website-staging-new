@@ -6,7 +6,12 @@ import JSZip from "jszip"
 import { useSearchParams } from "next/navigation"
 import { Download, Loader2, Package, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { buildExportPackFilename, EXPORT_PACK_PRESETS, getRecommendedExportPresets } from "@/lib/export-pack"
+import {
+  buildExportPackFilename,
+  getRecommendedExportPresets,
+  normalizeExportPresetIds,
+  resolveExportPackPresets,
+} from "@/lib/export-pack"
 import type { CommunityCampaignMeta } from "@/lib/types"
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -92,6 +97,7 @@ export default function ExportPackPage() {
         ? Number(searchParams.get("campaignVariationCount"))
         : undefined,
       brief: searchParams.get("campaignBrief") || undefined,
+      presetIds: normalizeExportPresetIds(searchParams.get("campaignPresetIds")),
     }
 
     return {
@@ -105,12 +111,23 @@ export default function ExportPackPage() {
       generationPlatform: searchParams.get("generationPlatform") || "",
       autoDownload: searchParams.get("autoDownload") === "1",
       campaign,
+      presetIds: normalizeExportPresetIds(searchParams.get("campaignPresetIds")),
     }
   }, [searchParams])
 
   const recommendedPresets = useMemo(
     () => getRecommendedExportPresets(payload.campaign),
     [payload.campaign]
+  )
+
+  const selectedPresets = useMemo(
+    () =>
+      resolveExportPackPresets({
+        type: payload.type,
+        campaign: payload.campaign,
+        presetIds: payload.presetIds,
+      }),
+    [payload.campaign, payload.presetIds, payload.type]
   )
 
   const handleDownloadPack = useCallback(async () => {
@@ -137,6 +154,7 @@ export default function ExportPackPage() {
             creationId: payload.creationId,
             sourceAsset: payload.assetUrl,
             campaign: payload.campaign,
+            selectedPresetIds: selectedPresets.map((preset) => preset.id),
             exportedAt: new Date().toISOString(),
           },
           null,
@@ -159,7 +177,7 @@ export default function ExportPackPage() {
           payload.prompt ? `Prompt: ${payload.prompt}` : "",
           "",
           payload.type === "image"
-            ? "Included: original asset + multi-platform image variants."
+            ? `Included: original asset + ${selectedPresets.length} selected image variants.`
             : "Included: original video asset + campaign brief for manual downstream resizing.",
         ]
           .filter(Boolean)
@@ -169,7 +187,7 @@ export default function ExportPackPage() {
       zip.file(`source/original.${sourceExtension}`, assetBlob)
 
       if (payload.type === "image") {
-        for (const preset of EXPORT_PACK_PRESETS) {
+        for (const preset of selectedPresets) {
           setStatus(`Building ${preset.label}...`)
           const variantBlob = await buildImageVariant(assetBlob, preset.width, preset.height)
           zip.file(`variants/${preset.id}.jpg`, variantBlob)
@@ -282,7 +300,9 @@ export default function ExportPackPage() {
           <aside className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 md:p-8 space-y-6">
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Included</p>
-              <h2 className="text-2xl font-semibold">{payload.type === "image" ? "5 image variants" : "Video source pack"}</h2>
+              <h2 className="text-2xl font-semibold">
+                {payload.type === "image" ? `${selectedPresets.length} image variants` : "Video source pack"}
+              </h2>
             </div>
 
             <div className="space-y-3">
@@ -295,7 +315,7 @@ export default function ExportPackPage() {
                 </div>
               ) : null}
               {payload.type === "image" ? (
-                EXPORT_PACK_PRESETS.map((preset) => (
+                selectedPresets.map((preset) => (
                   <div key={preset.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
                     <div>
                       <p className="font-medium">{preset.label}</p>

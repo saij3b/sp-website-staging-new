@@ -5,6 +5,7 @@ export interface CommunityGraphStats {
   siblingCount: number
   directChildCount: number
   maxDepth: number
+  depthBreakdown: Array<{ depth: number; count: number }>
   platformBreakdown: Array<{ platform: string; count: number }>
 }
 
@@ -29,10 +30,13 @@ export function buildCommunityGraphStats(input: {
 }): CommunityGraphStats {
   const allPosts = dedupeCommunityPosts([input.current, ...input.graphPosts])
   const platformCounts = new Map<string, number>()
+  const depthCounts = new Map<number, number>()
 
   for (const post of allPosts) {
     const platform = (post.generationPlatform || "unknown").toUpperCase()
     platformCounts.set(platform, (platformCounts.get(platform) || 0) + 1)
+    const depth = post.remixDepth || 0
+    depthCounts.set(depth, (depthCounts.get(depth) || 0) + 1)
   }
 
   return {
@@ -40,6 +44,9 @@ export function buildCommunityGraphStats(input: {
     siblingCount: input.siblingPosts.length,
     directChildCount: input.childPosts.length,
     maxDepth: allPosts.reduce((max, post) => Math.max(max, post.remixDepth || 0), 0),
+    depthBreakdown: Array.from(depthCounts.entries())
+      .map(([depth, count]) => ({ depth, count }))
+      .sort((a, b) => a.depth - b.depth),
     platformBreakdown: Array.from(platformCounts.entries())
       .map(([platform, count]) => ({ platform, count }))
       .sort((a, b) => b.count - a.count),

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Menu, X, LogOut, ChevronRight, Sparkles, CreditCard, User } from "lucide-react"
+import { Menu, X, LogOut, ChevronRight, Sparkles, CreditCard, User, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "@/context/auth-context"
 import { doc, onSnapshot } from "firebase/firestore"
 import { db } from "@/lib/firebaseClient"
+import { useClawLink } from "@/hooks/use-claw-link"
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -25,6 +26,7 @@ export function Navbar() {
   const lastScrollYRef = useRef(0)
   const [scrolled, setScrolled] = useState(false)
   const { user, logout } = useAuth()
+  const { isLinked: isClawLinked } = useClawLink()
   const pathname = usePathname()
   const router = useRouter()
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0, opacity: 0 })
@@ -90,6 +92,7 @@ export function Navbar() {
   const navLinks = [
     { href: "/", label: "Explore" },
     { href: "/studio", label: "Studio" },
+    { href: "/claw/hub", label: "Claw" },
     { href: "/community", label: "Community" },
     { href: "/pricing", label: "Pricing" },
   ]
@@ -170,6 +173,18 @@ export function Navbar() {
 
           {}
           <div className="flex items-center gap-4 relative z-[110]">
+            <Link
+              href="/claw/hub"
+              className={cn(
+                "hidden md:flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                isClawLinked
+                  ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/20"
+                  : "border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white hover:bg-white/[0.08]"
+              )}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              {isClawLinked ? "Claw Linked" : "Link Claw"}
+            </Link>
             {}
             <div className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-zinc-900/80 border border-white/10 shadow-lg backdrop-blur-md">
               <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center">

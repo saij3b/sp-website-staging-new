@@ -13,6 +13,8 @@ export function CommunityGrid() {
     const searchParams = useSearchParams()
 
     const tagFilter = searchParams.get("tag")
+    const textFilter = (searchParams.get("q") || "").trim().toLowerCase()
+    const quickFilter = (searchParams.get("filter") || "").trim().toLowerCase()
 
     const [livePosts, setLivePosts] = useState<CommunityPost[]>([])
     const [removedPosts, setRemovedPosts] = useState<Set<string>>(new Set())
@@ -70,6 +72,39 @@ export function CommunityGrid() {
             );
         }
 
+        if (textFilter) {
+            finalArray = finalArray.filter((post) => {
+                const haystack = [
+                    post.title,
+                    post.description,
+                    post.prompt,
+                    post.author?.name,
+                    ...(post.tags || []),
+                    post.model,
+                    post.generationPlatform,
+                ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase();
+                return haystack.includes(textFilter);
+            });
+        }
+
+        if (quickFilter === "directed") {
+            finalArray = finalArray.filter((post) => Boolean(post.campaign?.directed));
+        } else if (quickFilter === "remixable") {
+            finalArray = finalArray.filter((post) => post.allowRemix);
+        } else if (quickFilter === "branching") {
+            finalArray = finalArray.filter((post) =>
+                Boolean(post.parentCreationId || post.rootCreationId || post.sourcePostId || (post.remixDepth || 0) > 0)
+            );
+        } else if (quickFilter === "telegram") {
+            finalArray = finalArray.filter((post) => {
+                const tags = (post.tags || []).map((tag) => tag.toLowerCase());
+                return tags.includes("telegram") || tags.includes("claw") || (post.generationPlatform || "").toLowerCase().includes("telegram");
+            });
+        }
+
         
         const images = finalArray.filter(p => p.type === 'image');
         const videos = finalArray.filter(p => p.type === 'video');
@@ -90,14 +125,21 @@ export function CommunityGrid() {
         }
 
         return mixed;
-    }, [tagFilter, livePosts, removedPosts]);
+    }, [quickFilter, tagFilter, textFilter, livePosts, removedPosts]);
 
 
     if (filteredPosts.length === 0) {
+        const reason = textFilter
+            ? `No posts match "${textFilter}".`
+            : tagFilter
+                ? `There are no posts with the tag "#${tagFilter}".`
+                : quickFilter
+                    ? `No posts match the "${quickFilter}" filter.`
+                    : "No community generations are available yet.";
         return (
             <div className="flex flex-col items-center justify-center py-20 text-center">
                 <p className="text-xl font-medium text-white mb-2">No generations found</p>
-                <p className="text-zinc-500">There are no posts with the tag &quot;#{tagFilter}&quot;.</p>
+                <p className="text-zinc-500">{reason}</p>
             </div>
         )
     }

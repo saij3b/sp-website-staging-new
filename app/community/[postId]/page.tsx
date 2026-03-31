@@ -267,6 +267,30 @@ export default function PostDetailPage() {
         autoDownload: Boolean(post.campaign?.directed),
     })
 
+    const directorRemixTarget = (() => {
+        const params = new URLSearchParams({
+            mode: "remix",
+            prompt: post.prompt || "",
+            previewUrl: post.assetUrl,
+            creationId: post.creationId || "",
+            rootCreationId: post.rootCreationId || post.creationId || "",
+            remixDepth: String((post.remixDepth || 0) + 1),
+            sourcePostId: post.id,
+            taskId: post.taskId || post.creationId || "",
+            generationPlatform: post.generationPlatform || "",
+            remixType: post.type,
+            campaignDirected: post.campaign?.directed ? "1" : "",
+            campaignGoal: post.campaign?.goal || "",
+            campaignPlatform: post.campaign?.platform || "",
+            campaignStyle: post.campaign?.style || "",
+            campaignVariationCount: post.campaign?.variationCount ? String(post.campaign.variationCount) : "",
+            campaignBrief: post.campaign?.brief || post.prompt || "",
+            campaignPresetIds: post.campaign?.presetIds?.join(",") || "",
+            autoExportPack: post.campaign?.directed ? "1" : "",
+        })
+        return `/studio?${params.toString()}`
+    })()
+
     const lineageChain = useMemo(
         () => buildLineageChain(post, parentPost, rootPost),
         [parentPost, post, rootPost]
@@ -680,6 +704,31 @@ export default function PostDetailPage() {
                                         </div>
                                     </div>
                                 )}
+                                {graphStats.depthBreakdown.length > 0 && (
+                                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Depth Spread</p>
+                                        <div className="mt-3 space-y-2.5">
+                                            {graphStats.depthBreakdown.map((entry) => {
+                                                const maxBucketCount = Math.max(...graphStats.depthBreakdown.map((item) => item.count), 1)
+                                                const widthPercent = Math.max(10, Math.round((entry.count / maxBucketCount) * 100))
+                                                return (
+                                                    <div key={`depth-${entry.depth}`} className="space-y-1">
+                                                        <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                                                            <span>Depth {entry.depth}</span>
+                                                            <span>{entry.count} node{entry.count > 1 ? "s" : ""}</span>
+                                                        </div>
+                                                        <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+                                                            <div
+                                                                className="h-full rounded-full bg-gradient-to-r from-indigo-400/90 via-lime-300/80 to-cyan-300/90"
+                                                                style={{ width: `${widthPercent}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -699,6 +748,20 @@ export default function PostDetailPage() {
                         >
                             <RefreshCw className="h-4 w-4 mr-2" />
                             Remix Creation
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="w-full h-12 rounded-xl border-lime-300/30 bg-lime-300/10 hover:bg-lime-300/20 text-lime-100 text-sm"
+                            onClick={() => {
+                                if (!user) {
+                                    router.push(`/login?redirect=${encodeURIComponent(directorRemixTarget)}`)
+                                } else {
+                                    router.push(directorRemixTarget)
+                                }
+                            }}
+                        >
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Open In Director Mode
                         </Button>
                         <Button
                             asChild
