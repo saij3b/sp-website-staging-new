@@ -151,6 +151,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     success: true,
     channelType,
     channelUserId,
+    chatId,
+    telegramUrl: channelType === "telegram" ? "https://t.me/StudioXCbot" : undefined,
     message: "Account linked successfully",
   });
 }

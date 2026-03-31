@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Download, Star, Zap, Image, Video, Wand2, LayoutGrid, Tag } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Search, Download, Star, Zap, Image, Video, Wand2, LayoutGrid, Tag, Bot, ArrowUpRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/auth-context";
+import { useClawLink } from "@/hooks/use-claw-link";
+import { db } from "@/lib/firebaseClient";
+import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 
 interface SkillEntry {
   name: string;
@@ -18,6 +24,14 @@ interface SkillEntry {
   featured: boolean;
   stars: number;
   version: string;
+}
+
+interface ClawRecentJob {
+  id: string;
+  prompt: string;
+  status: string;
+  model?: string;
+  createdAt?: string;
 }
 
 const BUILT_IN_SKILLS: SkillEntry[] = [
@@ -268,17 +282,88 @@ const CATEGORY_COLORS = {
 type Category = "all" | "image" | "video" | "template" | "utility";
 
 export default function ClawHubPage() {
+  const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const { link, isLinked, loading: linkLoading } = useClawLink();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category>("all");
+  const [recentJobs, setRecentJobs] = useState<ClawRecentJob[]>([]);
 
-  const filtered = BUILT_IN_SKILLS.filter((skill) => {
-    const matchesSearch =
-      !search ||
-      skill.name.includes(search.toLowerCase()) ||
-      skill.description.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = activeCategory === "all" || skill.category === activeCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const incomingPrompt = searchParams.get("prompt") || "";
+  const incomingAssetUrl = searchParams.get("assetUrl") || "";
+  const incomingCreationId = searchParams.get("creationId") || "";
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setRecentJobs([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, "jobs"),
+      where("uid", "==", user.uid),
+      where("source", "==", "claw"),
+      limit(20)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const toMillis = (value: unknown) => {
+          if (!value) return 0;
+          if (typeof value === "string") {
+            const d = Date.parse(value);
+            return Number.isNaN(d) ? 0 : d;
+          }
+          if (typeof value === "object" && value !== null) {
+            const maybeTs = value as { toDate?: () => Date; seconds?: number };
+            if (typeof maybeTs.toDate === "function") return maybeTs.toDate().getTime();
+            if (typeof maybeTs.seconds === "number") return maybeTs.seconds * 1000;
+          }
+          return 0;
+        };
+
+        const jobs = snapshot.docs
+          .map((docSnap) => {
+            const data = docSnap.data() as Record<string, any>;
+            return {
+              id: docSnap.id,
+              prompt: data.prompt || data.args?.prompt || "Untitled request",
+              status: data.status || "pending",
+              model: data.model || data.args?.model || "",
+              createdAt: data.createdAt?.toDate
+                ? data.createdAt.toDate().toISOString()
+                : typeof data.createdAt === "string"
+                  ? data.createdAt
+                  : undefined,
+              createdMs: toMillis(data.createdAt),
+            };
+          })
+          .sort((a, b) => b.createdMs - a.createdMs)
+          .slice(0, 6)
+          .map(({ createdMs: _createdMs, ...rest }) => rest);
+
+        setRecentJobs(jobs);
+      },
+      () => setRecentJobs([])
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const filtered = useMemo(
+    () =>
+      BUILT_IN_SKILLS.filter((skill) => {
+        const text = search.toLowerCase();
+        const matchesSearch =
+          !text ||
+          skill.name.includes(text) ||
+          skill.description.toLowerCase().includes(text);
+        const matchesCategory = activeCategory === "all" || skill.category === activeCategory;
+        return matchesSearch && matchesCategory;
+      }),
+    [activeCategory, search]
+  );
 
   const featured = filtered.filter((s) => s.featured);
   const rest = filtered.filter((s) => !s.featured);
@@ -292,12 +377,119 @@ export default function ClawHubPage() {
             <LayoutGrid className="w-4 h-4" />
             ClawHub
           </div>
-          <h1 className="text-3xl font-bold text-white mb-3">Skills Marketplace</h1>
+          <h1 className="text-3xl font-bold text-white mb-3">Claw Command Hub</h1>
           <p className="text-neutral-400 max-w-lg mx-auto">
-            Extend StudioX Claw with skills. Each skill adds new commands to your bot.
-            Install with one click — available instantly in chat.
+            Pair Telegram once, route work between chat and Studio, and keep your latest Claw actions in one place.
           </p>
         </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">Connection</p>
+                <h2 className="mt-2 text-xl font-semibold text-white">
+                  {linkLoading ? "Checking Claw link..." : isLinked ? "Telegram linked" : "Telegram not linked"}
+                </h2>
+                <p className="mt-2 text-sm text-neutral-400">
+                  {isLinked
+                    ? `Connected as ${link?.channelUserId || "unknown"} on ${link?.channelType || "telegram"}`
+                    : "Use /pair in Telegram and enter your 6-digit code to connect chat + web workflows."}
+                </p>
+              </div>
+              <div className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider",
+                isLinked
+                  ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100"
+                  : "border-white/10 bg-white/[0.03] text-neutral-400"
+              )}>
+                {isLinked ? "Linked" : "Unlinked"}
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button asChild className="bg-violet-600 hover:bg-violet-500 text-white">
+                <a href="https://t.me/StudioXCbot" target="_blank" rel="noreferrer">
+                  <Bot className="w-4 h-4 mr-2" />
+                  Open Telegram Bot
+                </a>
+              </Button>
+              <Button asChild variant="outline" className="border-white/10 text-neutral-300 hover:text-white hover:bg-white/5">
+                <Link href="/claw/pair">
+                  {isLinked ? "Re-link Account" : "Pair Account"}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="border-white/10 text-neutral-300 hover:text-white hover:bg-white/5">
+                <Link href="/claw/schedule">Open Schedule</Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">Recent Claw Jobs</p>
+            <h3 className="mt-2 text-3xl font-semibold text-white">{recentJobs.length}</h3>
+            <p className="mt-2 text-sm text-neutral-400">Tracked actions from chat-driven generations.</p>
+            <Button asChild variant="outline" className="mt-4 w-full border-white/10 text-neutral-300 hover:text-white hover:bg-white/5">
+              <Link href="/claw/schedule">View Job Timeline</Link>
+            </Button>
+          </div>
+        </div>
+
+        {(incomingPrompt || incomingAssetUrl) && (
+          <div className="mb-8 rounded-2xl border border-lime-300/25 bg-lime-300/10 p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-lime-200">Incoming From Studio</p>
+            <p className="mt-2 text-sm text-lime-100/90">
+              Ready to continue this item in chat.
+              {incomingPrompt ? ` Prompt: "${incomingPrompt.slice(0, 90)}${incomingPrompt.length > 90 ? "..." : ""}"` : ""}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild className="bg-lime-300 text-black hover:bg-lime-200">
+                <a href="https://t.me/StudioXCbot" target="_blank" rel="noreferrer">
+                  Send To Telegram
+                </a>
+              </Button>
+              <Button asChild variant="outline" className="border-lime-200/30 text-lime-100 hover:bg-lime-200/10">
+                <Link href={`/studio?mode=remix&prompt=${encodeURIComponent(incomingPrompt || "")}&previewUrl=${encodeURIComponent(incomingAssetUrl || "")}&creationId=${encodeURIComponent(incomingCreationId || "")}`}>
+                  Open In Studio
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {recentJobs.length > 0 && (
+          <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm text-neutral-500 uppercase tracking-wider">Latest Bot Actions</h2>
+              <Link href="/claw/schedule" className="text-xs text-neutral-400 hover:text-white inline-flex items-center gap-1">
+                Full timeline
+                <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <div className="mt-4 space-y-2">
+              {recentJobs.map((job) => (
+                <div key={job.id} className="rounded-xl border border-white/8 bg-black/25 px-3 py-2.5 flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm text-white truncate">{job.prompt}</p>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                      {job.model || "unknown model"}
+                      {job.createdAt ? ` • ${new Date(job.createdAt).toLocaleString()}` : ""}
+                    </p>
+                  </div>
+                  <span className={cn(
+                    "text-[10px] uppercase tracking-wider rounded-full border px-2 py-1 shrink-0",
+                    job.status === "completed"
+                      ? "border-green-400/30 bg-green-400/10 text-green-300"
+                      : job.status === "failed" || job.status === "cancelled"
+                        ? "border-red-400/30 bg-red-400/10 text-red-300"
+                        : "border-amber-400/30 bg-amber-400/10 text-amber-300"
+                  )}>
+                    {job.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Search + Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
