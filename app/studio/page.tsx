@@ -515,6 +515,31 @@ function StudioLayout() {
   const startJobPoller = async (jobId: string, item: GenerationItem) => {
     const provider = (item.generationPlatform || item.settings?.provider || "poyo") as StudioProvider;
     const getJobStatus = provider === "poyo" ? httpsCallable(functions, "getJobStatus") : null;
+    const maxPollAttempts = provider === "apimart" ? 240 : 200;
+    const maxConsecutiveErrors = 6;
+    let pollAttempts = 0;
+    let consecutiveErrors = 0;
+
+    const markTerminalFailure = (message: string) => {
+      const failedItem: GenerationItem = {
+        ...item,
+        taskId: item.taskId || jobId,
+        generationPlatform: provider,
+        status: "failed" as const,
+        error: message,
+      };
+      setActiveGeneration(failedItem);
+      setGenerations((prev: GenerationItem[]) => prev.map((g) => (g.id === jobId ? failedItem : g)));
+      setIsGenerating(false);
+      toast.error(message, { id: "gen-toast" });
+    };
+
+    const scheduleNextPoll = (isError: boolean) => {
+      const baseDelay = isError ? 2_200 : 1_400;
+      const factor = isError ? Math.pow(1.6, Math.max(0, consecutiveErrors - 1)) : Math.pow(1.06, pollAttempts);
+      const delay = Math.min(Math.round(baseDelay * factor), isError ? 12_000 : 5_500);
+      setTimeout(checkStatus, delay);
+    };
 
     const checkStatus = async () => {
       if (cancelledJobsRef.current.has(jobId)) {
@@ -522,19 +547,35 @@ function StudioLayout() {
         cancelledJobsRef.current.delete(jobId);
         return;
       }
+
+      if (pollAttempts >= maxPollAttempts) {
+        markTerminalFailure("Generation timed out before completion. Please retry or switch to a lighter model.");
+        return;
+      }
+
+      pollAttempts += 1;
+
       try {
         const data: any = provider === "apimart"
           ? await (async () => {
+              const controller = new AbortController();
+              const timeout = setTimeout(() => controller.abort(), 15_000);
               const response = await fetch(`/api/apimart/tasks/${encodeURIComponent(jobId)}?language=en`, {
                 cache: "no-store",
+                signal: controller.signal,
+              }).finally(() => {
+                clearTimeout(timeout);
               });
-              const payload = await response.json();
+              const raw = await response.text();
+              const payload = raw ? JSON.parse(raw) : null;
               if (!response.ok) {
-                throw new Error(payload?.error || "ApiMart task polling failed");
+                throw new Error(payload?.error || `ApiMart task polling failed (${response.status})`);
               }
               return normalizeApiMartStatus(payload);
             })()
           : (await getJobStatus!({ jobId: jobId })).data;
+
+        consecutiveErrors = 0;
 
         if (data.status === "completed") {
           console.log("Finished Rendering!", data);
@@ -597,14 +638,14 @@ function StudioLayout() {
             void persistCompletedGeneration(completedItem);
           }
           setIsGenerating(false);
-        } else if (data.status === "failed") {
+        } else if (data.status === "failed" || data.status === "cancelled") {
           console.log("Task Failed, internal backend already refunded tokens!", data.error);
           const failedItem: GenerationItem = {
             ...item,
             taskId: data.taskId || item.taskId || jobId,
             generationPlatform: provider,
             status: "failed" as const,
-            error: data.error,
+            error: data.error || (data.status === "cancelled" ? "Generation was cancelled." : "Generation failed."),
           };
           setActiveGeneration(failedItem);
           setGenerations((prev: GenerationItem[]) => prev.map(g => g.id === jobId ? failedItem : g));
@@ -623,11 +664,18 @@ function StudioLayout() {
           setGenerations((prev: GenerationItem[]) =>
             prev.map(g => g.id === jobId ? { ...g, generationPlatform: provider, taskId: data.taskId || g.taskId || jobId, status: "generating", progress, completedCount, totalCount } : g)
           );
-          setTimeout(checkStatus, 1500); 
+          scheduleNextPoll(false);
         }
       } catch (error) {
+        consecutiveErrors += 1;
         console.error("Polling error:", error);
-        setTimeout(checkStatus, 2000);
+
+        if (consecutiveErrors >= maxConsecutiveErrors) {
+          markTerminalFailure("We lost connection while checking job status. Please retry in a moment.");
+          return;
+        }
+
+        scheduleNextPoll(true);
       }
     };
     checkStatus();

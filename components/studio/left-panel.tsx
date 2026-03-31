@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,6 +63,25 @@ const AI_VIDEO_MODELS: ModelItem[] = VIDEO_MODEL_LIST.map(m => ({
 
 function getConfig(modelId: string): ModelConfig | undefined {
     return IMAGE_MODELS[modelId] || VIDEO_MODELS[modelId];
+}
+
+function estimateModelCost(modelId: string): number {
+    const config = getConfig(modelId);
+    if (config?.type === "image") return config.getCost({ resolution: config.defaultResolution, n: 1 });
+    if (config?.type === "video") {
+        return config.getCost({
+            resolution: config.defaultResolution,
+            duration: config.defaultDuration,
+            generateAudio: false,
+        });
+    }
+    return 0;
+}
+
+function getCostTier(cost: number): "Economy" | "Balanced" | "Premium" {
+    if (cost <= 5) return "Economy";
+    if (cost <= 12) return "Balanced";
+    return "Premium";
 }
 
 export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: initialMode, aspectRatio, setAspectRatio }: StudioLeftPanelProps) {
@@ -483,6 +502,45 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
         return selectedModel.cost || 0;
     })();
 
+    const activeModelPool = useMemo(
+        () => (creationMode === "video" || (creationMode === "remix" && remixType === "video") ? AI_VIDEO_MODELS : AI_IMAGE_MODELS),
+        [creationMode, remixType]
+    );
+
+    const quickModelPicks = useMemo(() => {
+        const weighted = activeModelPool
+            .map((model) => ({ ...model, estimatedCost: estimateModelCost(model.id) }))
+            .sort((a, b) => a.estimatedCost - b.estimatedCost);
+
+        if (weighted.length === 0) return [];
+        const economy = weighted[0];
+        const balanced = weighted[Math.floor(weighted.length / 2)];
+        const premium = weighted[weighted.length - 1];
+
+        const unique = [economy, balanced, premium].filter(
+            (value, index, array) => array.findIndex((entry) => entry.id === value.id) === index
+        );
+
+        return unique.map((item) => ({
+            id: item.id,
+            label: getCostTier(item.estimatedCost),
+            helper: `${item.estimatedCost} cr`,
+            name: item.name,
+        }));
+    }, [activeModelPool]);
+
+    const providerMode = creationMode === "remix"
+        ? "remix"
+        : creationMode === "video" || (creationMode === "templates" && VIDEO_MODELS[selectedModel.id])
+            ? "video"
+            : "image";
+
+    const selectedProvider = chooseProvider({
+        mode: providerMode,
+        model: selectedModel.id,
+        wantsRemix: creationMode === "remix" || Boolean(previewUrl),
+    });
+
     const showImageUpload = isImageMode ? imgCfg!.supportsReferenceImage : (isVideoMode ? vidCfg!.supportsReferenceImage : false);
     const showVideoUpload = isVideoMode && vidCfg?.supportsReferenceVideo;
     const showPrompt = isVideoMode ? vidCfg!.supportsPrompt : true;
@@ -583,6 +641,32 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                                 <label className="text-[10px] font-medium text-zinc-500 tracking-[0.2em] uppercase flex items-center gap-2 px-1">
                                     <Settings2 className="w-3.5 h-3.5 text-zinc-600" /> Model Engine
                                 </label>
+
+                                {quickModelPicks.length > 0 && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {quickModelPicks.map((pick) => (
+                                            <button
+                                                key={pick.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    const target = activeModelPool.find((model) => model.id === pick.id);
+                                                    if (target) setSelectedModel(target);
+                                                }}
+                                                className={cn(
+                                                    "rounded-xl border px-2.5 py-1.5 text-left transition-all duration-300",
+                                                    selectedModel.id === pick.id
+                                                        ? "border-cyan-300/40 bg-cyan-300/12 text-cyan-100"
+                                                        : "border-white/10 bg-black/25 text-zinc-300 hover:border-white/20 hover:text-white"
+                                                )}
+                                            >
+                                                <p className="text-[10px] font-semibold uppercase tracking-[0.16em]">{pick.label}</p>
+                                                <p className="mt-0.5 truncate text-[11px] text-zinc-300">{pick.name}</p>
+                                                <p className="text-[10px] text-zinc-500">{pick.helper}</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
                                 <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen} modal={false}>
                                     <DropdownMenuTrigger asChild>
                                         <div className="w-full h-[54px] px-4.5 bg-black/20 hover:bg-black/40 rounded-[18px] border border-white/5 hover:border-white/20 hover:shadow-[0_0_40px_rgba(255,255,255,0.03)] transition-all duration-500 cursor-pointer flex items-center justify-between group overflow-hidden">
@@ -617,40 +701,68 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                                             onTouchMove={(e) => e.stopPropagation()}
                                         >
                                             <div className="space-y-0.5">
-                                                {(creationMode === "video" || (creationMode === "remix" && remixType === "video") ? AI_VIDEO_MODELS : AI_IMAGE_MODELS).map((model) => (
-                                                    <DropdownMenuItem
-                                                        key={model.id}
-                                                        onClick={() => setSelectedModel(model)}
-                                                        className="hover:bg-white/[0.05] focus:bg-white/[0.05] cursor-pointer flex items-center justify-between p-3 rounded-xl transition-all group"
-                                                    >
-                                                        <div className="flex items-center gap-2.5">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-indigo-400 transition-colors shadow-[0_0_8px_transparent] group-hover:shadow-indigo-500/50" />
-                                                            <span className={cn("text-[13px] font-medium text-zinc-400 group-hover:text-zinc-100 transition-colors")}>{model.name}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            {model.cost !== undefined && (
-                                                                <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                                    <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-sm">
-                                                                        <Sparkles className="w-2.5 h-2.5 text-white fill-white" />
-                                                                    </div>
-                                                                    <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white tabular-nums tracking-wide">
-                                                                        {(() => {
-                                                                            const mc = getConfig(model.id);
-                                                                            if (mc?.type === "image") return mc.getCost({ resolution: mc.defaultResolution, n: 1 });
-                                                                            if (mc?.type === "video") return mc.getCost({ resolution: mc.defaultResolution, duration: mc.defaultDuration, generateAudio: false });
-                                                                            return model.cost || 0;
-                                                                        })()}
-                                                                    </span>
+                                                {activeModelPool.map((model) => {
+                                                    const estimatedCost = estimateModelCost(model.id);
+                                                    const tier = getCostTier(estimatedCost);
+                                                    const modelProviderMode = creationMode === "remix"
+                                                        ? "remix"
+                                                        : creationMode === "video" || (creationMode === "templates" && VIDEO_MODELS[model.id])
+                                                            ? "video"
+                                                            : "image";
+                                                    const modelProvider = chooseProvider({
+                                                        mode: modelProviderMode,
+                                                        model: model.id,
+                                                        wantsRemix: creationMode === "remix",
+                                                    });
+
+                                                    return (
+                                                        <DropdownMenuItem
+                                                            key={model.id}
+                                                            onClick={() => setSelectedModel(model)}
+                                                            className="hover:bg-white/[0.05] focus:bg-white/[0.05] cursor-pointer flex items-center justify-between p-3 rounded-xl transition-all group"
+                                                        >
+                                                            <div className="min-w-0">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-700 group-hover:bg-indigo-400 transition-colors shadow-[0_0_8px_transparent] group-hover:shadow-indigo-500/50" />
+                                                                    <span className={cn("text-[13px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors truncate")}>{model.name}</span>
                                                                 </div>
-                                                            )}
-                                                            {model.isNew && <span className="bg-indigo-500/10 text-indigo-400 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md border border-indigo-500/20 shrink-0">New</span>}
-                                                        </div>
-                                                    </DropdownMenuItem>
-                                                ))}
+                                                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                                    <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.16em] text-cyan-100">
+                                                                        {modelProvider}
+                                                                    </span>
+                                                                    <span className="rounded-full border border-white/15 bg-white/[0.04] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
+                                                                        {tier}
+                                                                    </span>
+                                                                    {model.isNew && <span className="bg-indigo-500/10 text-indigo-400 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md border border-indigo-500/20">New</span>}
+                                                                </div>
+                                                            </div>
+                                                            <div className="ml-2 flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                                                                <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-sm">
+                                                                    <Sparkles className="w-2.5 h-2.5 text-white fill-white" />
+                                                                </div>
+                                                                <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white tabular-nums tracking-wide">
+                                                                    {estimatedCost}
+                                                                </span>
+                                                            </div>
+                                                        </DropdownMenuItem>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
+
+                                <div className="flex flex-wrap items-center gap-1.5 px-1">
+                                    <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-cyan-100">
+                                        Provider: {selectedProvider}
+                                    </span>
+                                    <span className="rounded-full border border-white/15 bg-white/[0.03] px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
+                                        Tier: {getCostTier(currentCostEstimate)}
+                                    </span>
+                                    <span className="rounded-full border border-white/15 bg-white/[0.03] px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
+                                        Estimated: {currentCostEstimate} credits
+                                    </span>
+                                </div>
                             </div>
                         )}
 

@@ -1,10 +1,36 @@
 const APIMART_BASE_URL = "https://api.apimart.ai/v1"
+const DEFAULT_TIMEOUT_MS = 30_000
+const MAX_SAFE_RETRIES = 5
+const RETRYABLE_STATUS_CODES = new Set([408, 409, 425, 429, 500, 502, 503, 504])
 
 export interface ApiMartRequestOptions {
   method?: "GET" | "POST"
   path: string
   body?: unknown
   language?: string
+  timeoutMs?: number
+  retries?: number
+}
+
+export class ApiMartRequestError extends Error {
+  status?: number
+  code?: number
+  retriable: boolean
+
+  constructor(
+    message: string,
+    options: {
+      status?: number
+      code?: number
+      retriable?: boolean
+    } = {}
+  ) {
+    super(message)
+    this.name = "ApiMartRequestError"
+    this.status = options.status
+    this.code = options.code
+    this.retriable = options.retriable ?? false
+  }
 }
 
 function getApiMartKey(): string {
@@ -15,11 +41,69 @@ function getApiMartKey(): string {
   return key
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function jitter(ms: number) {
+  return Math.floor(ms * (0.85 + Math.random() * 0.3))
+}
+
+function parseBody(text: string) {
+  if (!text) return null
+  try {
+    return JSON.parse(text) as any
+  } catch {
+    return null
+  }
+}
+
+function buildErrorFromResponse(response: Response, data: any): ApiMartRequestError {
+  const status = response.status
+  const code =
+    data && typeof data === "object" && typeof data.code === "number"
+      ? data.code
+      : undefined
+
+  const errorMessage =
+    (data && typeof data === "object" && "message" in data && typeof data.message === "string" && data.message) ||
+    (data && typeof data === "object" && "error" in data && typeof data.error === "string" && data.error) ||
+    `ApiMart request failed with ${status}`
+
+  return new ApiMartRequestError(errorMessage, {
+    status,
+    code,
+    retriable: RETRYABLE_STATUS_CODES.has(status),
+  })
+}
+
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof ApiMartRequestError) {
+    return error.retriable
+  }
+
+  if (error instanceof Error) {
+    const name = error.name.toLowerCase()
+    const message = error.message.toLowerCase()
+    return (
+      name.includes("abort") ||
+      message.includes("timeout") ||
+      message.includes("network") ||
+      message.includes("fetch failed") ||
+      message.includes("temporarily unavailable")
+    )
+  }
+
+  return false
+}
+
 export async function apimartRequest<T>({
   method = "GET",
   path,
   body,
   language,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  retries,
 }: ApiMartRequestOptions): Promise<T> {
   const key = getApiMartKey()
   const normalizedPath = path.startsWith("/") ? path : `/${path}`
@@ -29,28 +113,55 @@ export async function apimartRequest<T>({
     url.searchParams.set("language", language)
   }
 
-  const response = await fetch(url.toString(), {
-    method,
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  })
+  const defaultRetries = method === "GET" ? 2 : 0
+  const maxRetries = Math.max(0, Math.min(MAX_SAFE_RETRIES, retries ?? defaultRetries))
 
-  const text = await response.text()
-  const data = text ? JSON.parse(text) : null
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), timeoutMs)
+      const response = await fetch(url.toString(), {
+        method,
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      }).finally(() => {
+        clearTimeout(timeout)
+      })
 
-  if (!response.ok) {
-    const errorMessage =
-      (data && typeof data === "object" && "message" in data && typeof data.message === "string" && data.message) ||
-      (data && typeof data === "object" && "error" in data && typeof data.error === "string" && data.error) ||
-      `ApiMart request failed with ${response.status}`
+      const text = await response.text()
+      const data = parseBody(text)
 
-    throw new Error(errorMessage)
+      if (!response.ok) {
+        throw buildErrorFromResponse(response, data)
+      }
+
+      return data as T
+    } catch (error: unknown) {
+      const timedOut = error instanceof Error && error.name === "AbortError"
+      const normalizedError =
+        timedOut
+          ? new ApiMartRequestError(`ApiMart request timed out after ${Math.round(timeoutMs / 1000)}s`, {
+              status: 504,
+              retriable: true,
+            })
+          : error
+
+      const shouldRetry = attempt < maxRetries && isRetryableError(normalizedError)
+      if (!shouldRetry) {
+        if (normalizedError instanceof Error) throw normalizedError
+        throw new Error("ApiMart request failed")
+      }
+
+      const baseDelay = 450 * Math.pow(2, attempt)
+      await sleep(jitter(Math.min(baseDelay, 5_000)))
+    }
   }
 
-  return data as T
+  throw new Error("ApiMart request failed")
 }
 
 export interface ApiMartTaskImageResult {
@@ -146,6 +257,7 @@ export async function queryApiMartTaskStatus(taskId: string, language = "en") {
   return apimartRequest<ApiMartTaskStatusResponse>({
     path: `/tasks/${taskId}`,
     language,
+    retries: 3,
   })
 }
 

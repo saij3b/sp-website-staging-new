@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/auth-context";
 import { useClawLink } from "@/hooks/use-claw-link";
+import { ASSET_BASE } from "@/lib/assets";
 import { db } from "@/lib/firebaseClient";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
 
@@ -295,6 +296,12 @@ const CATEGORY_COLORS = {
   utility: "text-rose-100 border-rose-300/40 bg-rose-400/10",
 };
 
+const HERO_MOTIF_MEDIA = [
+  { src: `${ASSET_BASE}/capabilities/capabilities3.png`, alt: "Image generation motif", rotate: "-3deg", y: "0px", z: 30 },
+  { src: `${ASSET_BASE}/capabilities/capabilities8.png`, alt: "Video generation motif", rotate: "4deg", y: "8px", z: 20 },
+  { src: `${ASSET_BASE}/capabilities/capabilities12.png`, alt: "Community motif", rotate: "-7deg", y: "16px", z: 10 },
+];
+
 type Category = "all" | "image" | "video" | "template" | "utility";
 
 export default function ClawHubPage() {
@@ -413,11 +420,38 @@ export default function ClawHubPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 md:min-w-[260px]">
-              <MetricCard label="Skills Ready" value={String(BUILT_IN_SKILLS.length)} tone="cyan" />
-              <MetricCard label="Recent Jobs" value={String(statusCounts.total)} tone="lime" />
-              <MetricCard label="Completed" value={String(statusCounts.completed)} tone="amber" />
-              <MetricCard label="Failures" value={String(statusCounts.failed)} tone="rose" />
+            <div className="flex w-full max-w-[360px] flex-col gap-3">
+              <div className="grid grid-cols-2 gap-3">
+                <MetricCard label="Skills Ready" value={String(BUILT_IN_SKILLS.length)} tone="cyan" />
+                <MetricCard label="Recent Jobs" value={String(statusCounts.total)} tone="lime" />
+                <MetricCard label="Completed" value={String(statusCounts.completed)} tone="amber" />
+                <MetricCard label="Failures" value={String(statusCounts.failed)} tone="rose" />
+              </div>
+
+              <div className="relative h-40 overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-3">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent" />
+                <div className="relative h-full">
+                  {HERO_MOTIF_MEDIA.map((media, index) => (
+                    <div
+                      key={media.src}
+                      className="absolute top-2 w-32 overflow-hidden rounded-xl border border-white/15 bg-white/[0.04] shadow-[0_16px_45px_rgba(0,0,0,0.45)]"
+                      style={{
+                        left: `${index * 26}px`,
+                        transform: `translateY(${media.y}) rotate(${media.rotate})`,
+                        zIndex: media.z,
+                      }}
+                    >
+                      <img src={media.src} alt={media.alt} className="h-24 w-full object-cover" />
+                      <div className="px-2 py-1 text-[9px] uppercase tracking-[0.16em] text-zinc-300">
+                        {index === 0 ? "Image" : index === 1 ? "Video" : "Community"}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="absolute bottom-2 right-1 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.16em] text-cyan-100">
+                    Live command motifs
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -463,6 +497,34 @@ export default function ClawHubPage() {
                   Schedule Jobs
                 </Link>
               </Button>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Channel Identity</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-cyan-200/40 bg-cyan-300/12 text-cyan-100">
+                    <Bot className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-sm text-zinc-100">{link?.channelUserId || "Not paired yet"}</p>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-zinc-500">{link?.channelType || "telegram"}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-black/25 p-3">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Ready Actions</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {["Generate", "Remix", "Post", "Export"].map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-zinc-300"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -645,6 +707,8 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
 function SkillCard({ skill, emphasis = false }: { skill: SkillEntry; emphasis?: boolean }) {
   const Icon = CATEGORY_ICONS[skill.category];
   const colorClass = CATEGORY_COLORS[skill.category];
+  const skillVisualIndex = (skill.stars % 14) + 1;
+  const skillVisualUrl = `${ASSET_BASE}/capabilities/capabilities${skillVisualIndex}.png`;
 
   return (
     <article
@@ -655,6 +719,14 @@ function SkillCard({ skill, emphasis = false }: { skill: SkillEntry; emphasis?: 
     >
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-transparent opacity-70" />
       <div className="relative flex h-full flex-col gap-3">
+        <div className="overflow-hidden rounded-xl border border-white/10 bg-black/25">
+          <img
+            src={skillVisualUrl}
+            alt={`${skill.name} visual`}
+            className="h-24 w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        </div>
+
         <div className="flex items-start justify-between">
           <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl border", colorClass)}>
             <Icon className="h-4 w-4" />

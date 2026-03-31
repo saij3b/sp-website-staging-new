@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { queryApiMartTaskStatus } from "@/lib/apimart"
+import { ApiMartRequestError, queryApiMartTaskStatus } from "@/lib/apimart"
 
 export const runtime = "edge"
 
@@ -12,6 +12,7 @@ export async function GET(request: Request, context: { params: Promise<{ taskId:
     return NextResponse.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : "ApiMart task query failed"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const status = error instanceof ApiMartRequestError && error.status ? error.status : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { submitApiMartVideoGeneration } from "@/lib/apimart"
+import { ApiMartRequestError, submitApiMartVideoGeneration } from "@/lib/apimart"
 
 export const runtime = "edge"
 
@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     return NextResponse.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : "ApiMart video generation failed"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const status = error instanceof ApiMartRequestError && error.status ? error.status : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { remixApiMartVideo } from "@/lib/apimart"
+import { ApiMartRequestError, remixApiMartVideo } from "@/lib/apimart"
 
 export const runtime = "edge"
 
@@ -11,6 +11,7 @@ export async function POST(request: Request, context: { params: Promise<{ videoI
     return NextResponse.json(result)
   } catch (error) {
     const message = error instanceof Error ? error.message : "ApiMart video remix failed"
-    return NextResponse.json({ error: message }, { status: 500 })
+    const status = error instanceof ApiMartRequestError && error.status ? error.status : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

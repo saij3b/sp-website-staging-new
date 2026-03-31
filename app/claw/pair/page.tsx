@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedRoute } from "@/components/protected-route";
-import { Loader2, CheckCircle2, XCircle, Bot, Link2, ArrowRight, ShieldCheck } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Bot, Link2, ArrowRight, ShieldCheck, MessageCircle, Fingerprint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { ASSET_BASE } from "@/lib/assets";
 
 export default function ClawPairPage() {
   return (
@@ -28,6 +29,23 @@ function PairContent() {
   const [errorMsg, setErrorMsg] = useState("");
   const [channelInfo, setChannelInfo] = useState<{ channelType: string; channelUserId: string } | null>(null);
   const telegramBotUrl = useMemo(() => "https://t.me/StudioXCbot", []);
+  const pairingSteps = [
+    {
+      label: "Open Telegram bot",
+      icon: MessageCircle,
+      thumbnail: `${ASSET_BASE}/capabilities/capabilities1.png`,
+    },
+    {
+      label: "Run /pair to receive your code",
+      icon: Fingerprint,
+      thumbnail: `${ASSET_BASE}/capabilities/capabilities5.png`,
+    },
+    {
+      label: "Enter code to activate shared context",
+      icon: Link2,
+      thumbnail: `${ASSET_BASE}/capabilities/capabilities9.png`,
+    },
+  ] as const;
 
   useEffect(() => {
     const queryCode = searchParams.get("code");
@@ -89,16 +107,14 @@ function PairContent() {
           </p>
 
           <div className="mt-7 space-y-3">
-            {[
-              "Open Telegram bot",
-              "Run /pair to receive your code",
-              "Enter code here to activate shared context",
-            ].map((item, idx) => (
-              <div key={item} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
+            {pairingSteps.map((item, idx) => (
+              <div key={item.label} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5">
+                <img src={item.thumbnail} alt={item.label} className="h-10 w-10 rounded-lg border border-white/15 object-cover" />
                 <span className="flex h-6 w-6 items-center justify-center rounded-full border border-cyan-200/40 bg-cyan-300/10 text-xs font-semibold text-cyan-100">
                   {idx + 1}
                 </span>
-                <p className="text-sm text-zinc-200">{item}</p>
+                <p className="text-sm text-zinc-200">{item.label}</p>
+                <item.icon className="ml-auto h-4 w-4 text-zinc-500" />
               </div>
             ))}
           </div>
@@ -112,6 +128,21 @@ function PairContent() {
         </section>
 
         <section className="rounded-[24px] border border-white/12 bg-[#090c10]/90 p-6 md:p-8 shadow-[0_24px_80px_rgba(0,0,0,0.55)]">
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-cyan-200/40 bg-cyan-300/10 text-cyan-100">
+                <Bot className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">Bot Identity</p>
+                <p className="text-sm text-zinc-100">@StudioXCbot</p>
+              </div>
+            </div>
+            <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-emerald-100">
+              Live
+            </span>
+          </div>
+
           {step === "enter" && (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -160,6 +191,17 @@ function PairContent() {
                   Connected to <span className="capitalize text-cyan-100">{channelInfo?.channelType ?? "chat"}</span>.
                 </p>
               </div>
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-emerald-100">
+                  Paired
+                </span>
+                <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-cyan-100">
+                  Telegram
+                </span>
+                <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-zinc-300">
+                  Secure Link
+                </span>
+              </div>
               <div className="mt-1 flex w-full flex-col gap-2 sm:flex-row">
                 <Button asChild variant="outline" className="flex-1 rounded-xl border-white/15 bg-white/[0.02] text-zinc-200 hover:bg-white/[0.08]">
                   <a href={telegramBotUrl} target="_blank" rel="noreferrer">Return to Telegram</a>
@@ -180,6 +222,9 @@ function PairContent() {
               <div className="text-center">
                 <p className="text-lg text-white ">Pairing failed</p>
                 <p className="mt-1 text-sm text-zinc-400">{errorMsg}</p>
+              </div>
+              <div className="rounded-xl border border-rose-300/30 bg-rose-300/10 px-3 py-2 text-center text-xs text-rose-100">
+                Try generating a new /pair code in Telegram and submit it within 10 minutes.
               </div>
               <Button onClick={() => { setStep("enter"); setErrorMsg(""); }} className="w-full rounded-xl bg-cyan-300 text-black hover:bg-cyan-200">
                 Try again
