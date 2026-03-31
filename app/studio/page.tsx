@@ -292,7 +292,7 @@ function StudioLayout() {
 
       const uploadAsset = async (file: File) => {
         const extension = file.name.split('.').pop() || "png";
-        const storagePath = `studio-inputs/${user?.uid || "anonymous"}/${Date.now()}_${Math.random().toString(36).substring(7)}.${extension}`;
+        const storagePath = `community-uploads/${user?.uid || "anonymous"}/${Date.now()}_studio-input_${Math.random().toString(36).substring(7)}.${extension}`;
         const storageRef = ref(storage, storagePath);
         const uploadResult = await uploadBytesResumable(storageRef, file);
         return await getDownloadURL(uploadResult.ref);
@@ -300,7 +300,7 @@ function StudioLayout() {
 
       const uploadGeneratedAsset = async (blob: Blob, jobId: string, index: number, fallbackExtension = "png") => {
         const extension = extensionFromBlob(blob, fallbackExtension);
-        const storagePath = `studio-results/${user?.uid || "anonymous"}/${jobId}_${index}.${extension}`;
+        const storagePath = `community-uploads/${user?.uid || "anonymous"}/${jobId}_studio-result_${index}.${extension}`;
         const storageRef = ref(storage, storagePath);
         const uploadResult = await uploadBytesResumable(storageRef, blob);
         return await getDownloadURL(uploadResult.ref);
