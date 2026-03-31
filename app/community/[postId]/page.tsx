@@ -24,7 +24,13 @@ import { httpsCallable } from "firebase/functions"
 import { ASSET_BASE } from "@/lib/assets"
 import { mapCommunityPost } from "@/lib/community-post"
 import { buildExportPackHref } from "@/lib/export-pack"
-import { buildCommunityGraphStats, buildLineageChain, dedupeCommunityPosts } from "@/lib/community-graph"
+import {
+    buildCommunityCreatorStats,
+    buildCommunityGraphStats,
+    buildCommunityRemixTimeline,
+    buildLineageChain,
+    dedupeCommunityPosts,
+} from "@/lib/community-graph"
 
 export const runtime = "edge"
 
@@ -305,6 +311,18 @@ export default function PostDetailPage() {
                 childPosts,
             }),
         [childPosts, graphPosts, lineageChain, post, siblingPosts]
+    )
+
+    const allGraphNodes = useMemo(
+        () => dedupeCommunityPosts([post, ...graphPosts, ...lineageChain, ...childPosts, ...siblingPosts]),
+        [childPosts, graphPosts, lineageChain, post, siblingPosts]
+    )
+
+    const topCreators = useMemo(() => buildCommunityCreatorStats(allGraphNodes, 6), [allGraphNodes])
+
+    const remixTimeline = useMemo(
+        () => buildCommunityRemixTimeline(allGraphNodes).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+        [allGraphNodes]
     )
 
     const branchPreview = useMemo(
@@ -704,6 +722,33 @@ export default function PostDetailPage() {
                                         </div>
                                     </div>
                                 )}
+                                {topCreators.length > 0 && (
+                                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Top Remix Creators</p>
+                                        <div className="mt-3 space-y-2">
+                                            {topCreators.map((creator) => (
+                                                <div
+                                                    key={creator.authorId}
+                                                    className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium text-white truncate">{creator.authorName}</p>
+                                                        <p className="text-xs text-zinc-500">
+                                                            Max depth {creator.maxDepth} • Last remix{" "}
+                                                            {creator.latestAt.toLocaleDateString("en-US", {
+                                                                month: "short",
+                                                                day: "numeric",
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-1 text-xs text-zinc-300">
+                                                        {creator.count}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 {graphStats.depthBreakdown.length > 0 && (
                                     <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
                                         <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Depth Spread</p>
@@ -726,6 +771,45 @@ export default function PostDetailPage() {
                                                     </div>
                                                 )
                                             })}
+                                        </div>
+                                    </div>
+                                )}
+                                {remixTimeline.length > 0 && (
+                                    <div className="rounded-2xl border border-white/8 bg-black/20 p-4">
+                                        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">Recent Remix Timeline</p>
+                                        <div className="mt-3 space-y-2">
+                                            {remixTimeline.slice(0, 8).map((event) => (
+                                                <Link
+                                                    key={event.postId}
+                                                    href={`/community/${event.postId}`}
+                                                    className={cn(
+                                                        "block rounded-xl border px-3 py-2 transition-colors",
+                                                        event.postId === post.id
+                                                            ? "border-lime-300/30 bg-lime-300/10"
+                                                            : "border-white/5 bg-white/[0.02] hover:border-white/15"
+                                                    )}
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-medium text-white truncate">{event.title}</p>
+                                                            <p className="text-xs text-zinc-500">
+                                                                {event.authorName} • Depth {event.depth} • {event.platform}
+                                                            </p>
+                                                        </div>
+                                                        <div className="text-right shrink-0">
+                                                            <p className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+                                                                Node {event.cumulative}
+                                                            </p>
+                                                            <p className="text-[11px] text-zinc-400">
+                                                                {event.createdAt.toLocaleDateString("en-US", {
+                                                                    month: "short",
+                                                                    day: "numeric",
+                                                                })}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </Link>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
