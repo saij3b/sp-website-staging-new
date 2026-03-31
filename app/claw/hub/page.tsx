@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import {
   Search,
   Download,
@@ -29,18 +28,6 @@ import { useAuth } from "@/context/auth-context";
 import { useClawLink } from "@/hooks/use-claw-link";
 import { db } from "@/lib/firebaseClient";
 import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
-
-const displayFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-claw-display",
-});
-
-const monoFont = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-claw-mono",
-});
 
 interface SkillEntry {
   name: string;
@@ -401,7 +388,7 @@ export default function ClawHubPage() {
   }, [recentJobs]);
 
   return (
-    <div className={cn("relative min-h-screen overflow-hidden bg-[#040506]", displayFont.variable, monoFont.variable)}>
+    <div className="relative min-h-screen overflow-hidden bg-[#040506]">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -top-32 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-cyan-500/15 blur-[140px]" />
         <div className="absolute right-[-140px] top-[280px] h-[360px] w-[360px] rounded-full bg-lime-400/12 blur-[130px]" />
@@ -409,7 +396,7 @@ export default function ClawHubPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.06)_1px,transparent_0)] [background-size:22px_22px] opacity-[0.08]" />
       </div>
 
-      <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-10 md:pb-20 md:pt-14">
+      <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-36 md:pb-20 md:pt-44">
         <section className="relative overflow-hidden rounded-[28px] border border-white/12 bg-white/[0.03] p-6 md:p-8 shadow-[0_30px_120px_rgba(0,0,0,0.65)]">
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.09] via-transparent to-transparent" />
           <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
@@ -418,7 +405,7 @@ export default function ClawHubPage() {
                 <Rocket className="h-3.5 w-3.5" />
                 Claw Control Deck
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-5xl [font-family:var(--font-claw-display)]">
+              <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white md:text-5xl ">
                 Premium command center for your chat-native creation workflow
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-relaxed text-zinc-300 md:text-base">
@@ -440,7 +427,7 @@ export default function ClawHubPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Connection Status</p>
-                <h2 className="mt-2 text-xl font-semibold text-white [font-family:var(--font-claw-display)]">
+                <h2 className="mt-2 text-xl font-semibold text-white ">
                   {linkLoading ? "Verifying your Claw identity..." : isLinked ? "Telegram channel is authenticated" : "Link required to activate cross-surface handoff"}
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm text-zinc-400">
@@ -481,7 +468,7 @@ export default function ClawHubPage() {
 
           <div className="rounded-[24px] border border-white/10 bg-[#0a0c0f]/85 p-5 md:p-6">
             <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Execution Pulse</p>
-            <h3 className="mt-2 text-3xl font-semibold text-white [font-family:var(--font-claw-display)]">{recentJobs.length}</h3>
+            <h3 className="mt-2 text-3xl font-semibold text-white ">{recentJobs.length}</h3>
             <p className="mt-2 text-sm text-zinc-400">Recent chat-driven actions tracked across generation workflows.</p>
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-3 text-xs text-zinc-400">
               <p>Command Layer: Telegram polling</p>
@@ -540,7 +527,7 @@ export default function ClawHubPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm text-white">{job.prompt}</p>
                       <p className="mt-1 text-xs text-zinc-500">
-                        <span className="[font-family:var(--font-claw-mono)]">{job.model || "unknown model"}</span>
+                        <span className="font-mono">{job.model || "unknown model"}</span>
                         {job.createdAt ? ` • ${new Date(job.createdAt).toLocaleString()}` : ""}
                       </p>
                     </div>
@@ -629,7 +616,7 @@ export default function ClawHubPage() {
 
         <section className="mt-12 rounded-[24px] border border-white/10 bg-gradient-to-r from-white/[0.06] via-white/[0.02] to-white/[0.04] p-6 text-center">
           <Activity className="mx-auto h-7 w-7 text-cyan-200" />
-          <h3 className="mt-3 text-xl text-white [font-family:var(--font-claw-display)]">Community skill marketplace is next</h3>
+          <h3 className="mt-3 text-xl text-white ">Community skill marketplace is next</h3>
           <p className="mx-auto mt-2 max-w-2xl text-sm text-zinc-400">
             Curated skill packs, verified creators, and install analytics are being prepared for launch.
           </p>
@@ -650,7 +637,7 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
   return (
     <div className={cn("rounded-2xl border px-3 py-2", toneClass)}>
       <p className="text-[10px] uppercase tracking-[0.18em] opacity-80">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-white [font-family:var(--font-claw-display)]">{value}</p>
+      <p className="mt-1 text-xl font-semibold text-white ">{value}</p>
     </div>
   );
 }
@@ -678,13 +665,13 @@ function SkillCard({ skill, emphasis = false }: { skill: SkillEntry; emphasis?: 
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold text-white [font-family:var(--font-claw-display)]">{skill.name}</h3>
+          <h3 className="text-sm font-semibold text-white ">{skill.name}</h3>
           <p className="mt-1 text-xs leading-relaxed text-zinc-400">{skill.description}</p>
         </div>
 
         <div className="flex flex-wrap gap-1">
           {skill.triggers.slice(0, 2).map((t) => (
-            <span key={t} className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] text-zinc-400 [font-family:var(--font-claw-mono)]">
+            <span key={t} className="rounded-md border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[11px] text-zinc-400 font-mono">
               {t}
             </span>
           ))}

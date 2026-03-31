@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Loader2, Clock, Calendar, RefreshCw, Sparkles, Activity, AlertTriangle } from "lucide-react";
@@ -9,18 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/firebaseClient";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { cn } from "@/lib/utils";
-
-const displayFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-claw-display",
-});
-
-const monoFont = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-claw-mono",
-});
 
 interface ScheduledJob {
   jobId: string;
@@ -72,7 +59,7 @@ function ScheduleContent() {
   }, [jobs]);
 
   return (
-    <div className={cn("relative min-h-screen overflow-hidden bg-[#040506] px-4 py-10 md:py-14", displayFont.variable, monoFont.variable)}>
+    <div className="relative min-h-screen overflow-hidden bg-[#040506] px-4 pt-36 pb-12 md:pt-44 md:pb-16">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-[-160px] h-[360px] w-[620px] -translate-x-1/2 rounded-full bg-cyan-500/14 blur-[140px]" />
         <div className="absolute left-[-140px] bottom-[-140px] h-[320px] w-[320px] rounded-full bg-amber-400/10 blur-[120px]" />
@@ -87,7 +74,7 @@ function ScheduleContent() {
                 <Clock className="h-3.5 w-3.5" />
                 Claw Scheduler
               </div>
-              <h1 className="mt-4 text-3xl font-semibold text-white md:text-4xl [font-family:var(--font-claw-display)]">Automation timeline</h1>
+              <h1 className="mt-4 text-3xl font-semibold text-white md:text-4xl ">Automation timeline</h1>
               <p className="mt-2 text-sm text-zinc-300">Monitor recurring chat jobs and keep your generation cadence reliable.</p>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -99,7 +86,7 @@ function ScheduleContent() {
         </section>
 
         <section className="mt-6 rounded-[24px] border border-white/10 bg-[#0a0c0f]/90 p-5 md:p-6">
-          <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-xs text-zinc-400 [font-family:var(--font-claw-mono)]">
+          <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-xs text-zinc-400 font-mono">
             Create jobs from Telegram using: <span className="text-zinc-200">/schedule every 1h generate ...</span>
           </div>
 
@@ -132,7 +119,7 @@ function StatChip({ label, value, tone }: { label: string; value: string; tone: 
   return (
     <div className={cn("rounded-xl border px-3 py-2", toneClass)}>
       <p className="text-[10px] uppercase tracking-[0.18em] opacity-80">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-white [font-family:var(--font-claw-display)]">{value}</p>
+      <p className="mt-1 text-lg font-semibold text-white ">{value}</p>
     </div>
   );
 }
@@ -162,7 +149,7 @@ function JobCard({ job }: { job: ScheduledJob }) {
             >
               {isActive ? "Active" : "Paused"}
             </Badge>
-            <span className="text-[11px] text-zinc-500 [font-family:var(--font-claw-mono)]">{job.jobId.slice(0, 10)}</span>
+            <span className="text-[11px] text-zinc-500 font-mono">{job.jobId.slice(0, 10)}</span>
           </div>
 
           <p className="truncate text-sm text-white">“{prompt}”</p>
@@ -182,7 +169,7 @@ function JobCard({ job }: { job: ScheduledJob }) {
         </div>
 
         <div className="text-right text-xs text-zinc-500">
-          <p className="[font-family:var(--font-claw-mono)]">skill: {job.skillName}</p>
+          <p className="font-mono">skill: {job.skillName}</p>
           {job.retryCount > 0 ? <p className="mt-1 text-amber-200">retries: {job.retryCount}</p> : null}
         </div>
       </div>
@@ -196,12 +183,12 @@ function EmptyState() {
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-300/30 bg-cyan-300/10">
         <Sparkles className="h-6 w-6 text-cyan-100" />
       </div>
-      <h2 className="mt-4 text-xl text-white [font-family:var(--font-claw-display)]">No scheduled jobs yet</h2>
+      <h2 className="mt-4 text-xl text-white ">No scheduled jobs yet</h2>
       <p className="mx-auto mt-2 max-w-md text-sm text-zinc-400">
         Set up recurring generations from Telegram and monitor all automation in this timeline.
       </p>
 
-      <div className="mx-auto mt-6 max-w-lg rounded-2xl border border-white/10 bg-black/25 p-4 text-left text-xs text-zinc-300 [font-family:var(--font-claw-mono)]">
+      <div className="mx-auto mt-6 max-w-lg rounded-2xl border border-white/10 bg-black/25 p-4 text-left text-xs text-zinc-300 font-mono">
         <p className="mb-2 inline-flex items-center gap-2 text-zinc-400">
           <Activity className="h-3.5 w-3.5" />
           Example commands

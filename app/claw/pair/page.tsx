@@ -2,25 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import { useAuth } from "@/context/auth-context";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Loader2, CheckCircle2, XCircle, Bot, Link2, ArrowRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-
-const displayFont = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-claw-display",
-});
-
-const monoFont = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-claw-mono",
-});
 
 export default function ClawPairPage() {
   return (
@@ -81,7 +68,7 @@ function PairContent() {
   };
 
   return (
-    <div className={cn("relative min-h-screen overflow-hidden bg-[#040506] px-4 py-10 md:py-14", displayFont.variable, monoFont.variable)}>
+    <div className="relative min-h-screen overflow-hidden bg-[#040506] px-4 pt-36 pb-12 md:pt-44 md:pb-16">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/2 top-[-140px] h-[360px] w-[620px] -translate-x-1/2 rounded-full bg-cyan-500/15 blur-[140px]" />
         <div className="absolute right-[-100px] top-[260px] h-[320px] w-[320px] rounded-full bg-lime-400/10 blur-[130px]" />
@@ -94,7 +81,7 @@ function PairContent() {
             <Link2 className="h-3.5 w-3.5" />
             Claw Pairing
           </div>
-          <h1 className="mt-4 text-3xl font-semibold text-white md:text-4xl [font-family:var(--font-claw-display)]">
+          <h1 className="mt-4 text-3xl font-semibold text-white md:text-4xl ">
             Link chat identity to StudioX in under ten seconds
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-zinc-300">
@@ -136,7 +123,7 @@ function PairContent() {
                   maxLength={6}
                   className={cn(
                     "h-14 rounded-xl border-white/15 bg-white/[0.03] text-center text-2xl text-white placeholder:text-zinc-600",
-                    "tracking-[0.34em] [font-family:var(--font-claw-mono)]"
+                    "tracking-[0.34em] font-mono"
                   )}
                   autoFocus
                 />
@@ -168,7 +155,7 @@ function PairContent() {
             <div className="flex flex-col items-center gap-4 py-3">
               <CheckCircle2 className="h-12 w-12 text-emerald-300" />
               <div className="text-center">
-                <p className="text-lg text-white [font-family:var(--font-claw-display)]">Account linked successfully</p>
+                <p className="text-lg text-white ">Account linked successfully</p>
                 <p className="mt-1 text-sm text-zinc-400">
                   Connected to <span className="capitalize text-cyan-100">{channelInfo?.channelType ?? "chat"}</span>.
                 </p>
@@ -191,7 +178,7 @@ function PairContent() {
             <div className="flex flex-col items-center gap-4 py-3">
               <XCircle className="h-12 w-12 text-rose-300" />
               <div className="text-center">
-                <p className="text-lg text-white [font-family:var(--font-claw-display)]">Pairing failed</p>
+                <p className="text-lg text-white ">Pairing failed</p>
                 <p className="mt-1 text-sm text-zinc-400">{errorMsg}</p>
               </div>
               <Button onClick={() => { setStep("enter"); setErrorMsg(""); }} className="w-full rounded-xl bg-cyan-300 text-black hover:bg-cyan-200">
