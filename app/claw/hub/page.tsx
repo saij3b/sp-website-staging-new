@@ -28,7 +28,7 @@ import { useAuth } from "@/context/auth-context";
 import { useClawLink } from "@/hooks/use-claw-link";
 import { ASSET_BASE } from "@/lib/assets";
 import { db } from "@/lib/firebaseClient";
-import { collection, limit, onSnapshot, query, where } from "firebase/firestore";
+import { collection, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
 
 interface SkillEntry {
   name: string;
@@ -296,23 +296,44 @@ const CATEGORY_COLORS = {
   utility: "text-rose-100 border-rose-300/40 bg-rose-400/10",
 };
 
-const HERO_MOTIF_MEDIA = [
+interface HeroMotifMedia {
+  key: string;
+  kind: "image" | "video";
+  src: string;
+  poster?: string;
+  alt: string;
+  label: string;
+  caption: string;
+  accent: string;
+}
+
+const HERO_MOTIF_MEDIA_FALLBACK: HeroMotifMedia[] = [
   {
+    key: "fallback-image",
+    kind: "image",
     src: `${ASSET_BASE}/capabilities/capabilities3.png`,
     alt: "Image generation motif",
     label: "Image",
+    caption: "Prompt-ready render",
     accent: "border-cyan-200/40 bg-cyan-300/12 text-cyan-100",
   },
   {
+    key: "fallback-video",
+    kind: "video",
     src: `${ASSET_BASE}/capabilities/capabilities8.png`,
+    poster: `${ASSET_BASE}/capabilities/capabilities8.png`,
     alt: "Video generation motif",
     label: "Video",
+    caption: "Motion template pass",
     accent: "border-amber-200/40 bg-amber-300/12 text-amber-100",
   },
   {
+    key: "fallback-community",
+    kind: "image",
     src: `${ASSET_BASE}/capabilities/capabilities12.png`,
     alt: "Community motif",
     label: "Community",
+    caption: "Community remix flow",
     accent: "border-lime-200/40 bg-lime-300/12 text-lime-100",
   },
 ];
@@ -326,6 +347,7 @@ export default function ClawHubPage() {
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState<Category>("all");
   const [recentJobs, setRecentJobs] = useState<ClawRecentJob[]>([]);
+  const [heroMotifMedia, setHeroMotifMedia] = useState<HeroMotifMedia[]>(HERO_MOTIF_MEDIA_FALLBACK);
 
   const incomingPrompt = searchParams.get("prompt") || "";
   const incomingAssetUrl = searchParams.get("assetUrl") || "";
@@ -383,6 +405,68 @@ export default function ClawHubPage() {
 
     return () => unsubscribe();
   }, [user?.uid]);
+
+  useEffect(() => {
+    const isVideoUrl = (value?: string) => Boolean(value && /(\.mp4|\.mov|\.webm|\.m3u8)(\?|$)/i.test(value));
+
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(30));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const mapped = snapshot.docs
+          .map((docSnap) => {
+            const data = docSnap.data() as Record<string, any>;
+            if (data.isDeleted === true || data.status === "deleted") return null;
+
+            const assetUrl = typeof data.assetUrl === "string" ? data.assetUrl : "";
+            const thumbnailUrl = typeof data.thumbnailUrl === "string" ? data.thumbnailUrl : "";
+            const inferredVideo = data.type === "video" || isVideoUrl(assetUrl);
+            const kind: "image" | "video" = inferredVideo ? "video" : "image";
+
+            const source = kind === "video" ? assetUrl : thumbnailUrl || assetUrl;
+            if (!source) return null;
+
+            const captionRaw = (
+              data.title ||
+              data.prompt ||
+              data.model ||
+              data.description ||
+              "Community creation"
+            )
+              .toString()
+              .replace(/\s+/g, " ")
+              .trim();
+
+            return {
+              key: docSnap.id,
+              kind,
+              src: source,
+              poster:
+                kind === "video"
+                  ? thumbnailUrl || `${ASSET_BASE}/capabilities/capabilities8.png`
+                  : undefined,
+              alt: captionRaw || `Community ${kind}`,
+              label: kind === "video" ? "Live Video" : "Live Image",
+              caption: captionRaw || "Community creation",
+              accent:
+                kind === "video"
+                  ? "border-amber-200/40 bg-amber-300/12 text-amber-100"
+                  : "border-cyan-200/40 bg-cyan-300/12 text-cyan-100",
+            } as HeroMotifMedia;
+          })
+          .filter((entry): entry is HeroMotifMedia => Boolean(entry));
+
+        const prioritized = [...mapped.filter((item) => item.kind === "video"), ...mapped.filter((item) => item.kind === "image")];
+        const selected = prioritized.slice(0, 3);
+        setHeroMotifMedia(selected.length > 0 ? selected : HERO_MOTIF_MEDIA_FALLBACK);
+      },
+      () => {
+        setHeroMotifMedia(HERO_MOTIF_MEDIA_FALLBACK);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   const filtered = useMemo(
     () =>
@@ -451,21 +535,48 @@ export default function ClawHubPage() {
                     Live command motifs
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                  {HERO_MOTIF_MEDIA.map((media, index) => (
-                    <div
-                      key={media.src}
+                  {heroMotifMedia.map((media, index) => (
+                    <article
+                      key={media.key}
                       className={cn(
                         "overflow-hidden rounded-xl border border-white/15 bg-white/[0.04] shadow-[0_16px_36px_rgba(0,0,0,0.4)]",
-                        index === 1 ? "translate-y-1" : index === 2 ? "translate-y-2" : ""
+                        index === 1 ? "md:translate-y-1" : index === 2 ? "md:translate-y-2" : ""
                       )}
                     >
-                      <img src={media.src} alt={media.alt} className="h-20 w-full object-cover" />
-                      <div className="px-2 py-1.5">
-                        <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-[0.16em]", media.accent)}>
+                      <div className="relative h-24 w-full overflow-hidden bg-black/40">
+                        {media.kind === "video" ? (
+                          <video
+                            src={media.src}
+                            poster={media.poster}
+                            className="h-full w-full object-cover"
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
+                        ) : (
+                          <img src={media.src} alt={media.alt} className="h-full w-full object-cover" />
+                        )}
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                        {media.kind === "video" && (
+                          <span className="absolute right-1.5 top-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/25 bg-black/45 text-white">
+                            <Video className="h-2.5 w-2.5" />
+                          </span>
+                        )}
+                        <span
+                          className={cn(
+                            "absolute bottom-1.5 left-1.5 right-1.5 inline-flex max-w-[calc(100%-0.75rem)] items-center justify-center rounded-full border px-1.5 py-0.5 text-[8px] uppercase tracking-[0.12em]",
+                            media.accent
+                          )}
+                        >
                           {media.label}
                         </span>
                       </div>
-                    </div>
+                      <p className="truncate px-2 py-1.5 text-[9px] font-medium tracking-[0.06em] text-zinc-300" title={media.caption}>
+                        {media.caption}
+                      </p>
+                    </article>
                   ))}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
