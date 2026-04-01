@@ -80,7 +80,7 @@ function CommunityContent() {
       </div>
 
       {}
-      <section className="relative z-10 pt-40 md:pt-48 pb-12 md:pb-24 px-6 md:px-16 max-w-[2000px] mx-auto">
+      <section className="relative z-10 pt-48 md:pt-56 pb-12 md:pb-24 px-6 md:px-16 max-w-[2000px] mx-auto">
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 md:gap-10 mb-12 md:mb-20">
           <div className="space-y-4 md:space-y-6 max-w-3xl">
             <div className="flex items-center gap-3 hero-text transform-gpu">

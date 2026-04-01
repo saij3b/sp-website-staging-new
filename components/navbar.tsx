@@ -124,13 +124,22 @@ export function Navbar() {
             }}
             className="flex items-center gap-3 group relative z-[110]"
           >
-            <img 
-              src="/comb_logo.svg" 
-              alt="StudioX" 
+            <img
+              src="/studio_logo.svg"
+              alt="StudioX"
               draggable="false"
               className={cn(
-                "h-11 sm:h-13 object-contain transition-all duration-300 brightness-0 invert opacity-90 group-hover:opacity-100 select-none filter drop-shadow-[0_0_15px_rgba(255,255,255,0.25)]",
-                scrolled ? "h-10 sm:h-12" : "h-11 sm:h-13"
+                "md:hidden object-contain w-auto transition-all duration-300 brightness-0 invert opacity-90 group-hover:opacity-100 select-none filter drop-shadow-[0_0_15px_rgba(255,255,255,0.25)] origin-left",
+                scrolled ? "h-10 scale-110" : "h-12 scale-125 md:scale-150"
+              )}
+            />
+            <img
+              src="/comb_logo.svg"
+              alt="StudioX"
+              draggable="false"
+              className={cn(
+                "hidden md:block object-contain w-auto transition-all duration-300 brightness-0 invert opacity-90 group-hover:opacity-100 select-none filter drop-shadow-[0_0_15px_rgba(255,255,255,0.25)] origin-left",
+                scrolled ? "h-10 lg:h-12 scale-110 lg:scale-125" : "h-12 lg:h-16 scale-[1.35] lg:scale-[1.75]"
               )}
             />
           </Link>
