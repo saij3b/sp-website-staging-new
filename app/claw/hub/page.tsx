@@ -41,6 +41,8 @@ interface SkillEntry {
   featured: boolean;
   stars: number;
   version: string;
+  visualUrl?: string;
+  sourcePostId?: string;
 }
 
 interface ClawRecentJob {
@@ -51,7 +53,7 @@ interface ClawRecentJob {
   createdAt?: string;
 }
 
-const BUILT_IN_SKILLS: SkillEntry[] = [
+const BASE_SKILLS: SkillEntry[] = [
   {
     name: "image-gen",
     description: "Generate images from text prompts using 13 models including Flux, Seedream, and SDXL.",
@@ -74,102 +76,6 @@ const BUILT_IN_SKILLS: SkillEntry[] = [
     installed: true,
     featured: true,
     stars: 892,
-    version: "1.0.0",
-  },
-  {
-    name: "template-fire-lava",
-    description: "Apply dramatic fire and lava effects to any subject. Cinematic quality.",
-    author: "StudioX",
-    category: "template",
-    costEstimate: "15-30",
-    triggers: ["fire lava", "fire effect", "lava effect"],
-    installed: true,
-    featured: true,
-    stars: 634,
-    version: "1.0.0",
-  },
-  {
-    name: "template-air-bending",
-    description: "Create stunning air-bending effects with flowing wind and particle trails.",
-    author: "StudioX",
-    category: "template",
-    costEstimate: "15-30",
-    triggers: ["air bending", "air effect", "wind effect"],
-    installed: true,
-    featured: true,
-    stars: 521,
-    version: "1.0.0",
-  },
-  {
-    name: "template-earth-zoom",
-    description: "Epic earth zoom-out effect starting from any location or subject.",
-    author: "StudioX",
-    category: "template",
-    costEstimate: "20-40",
-    triggers: ["earth zoom", "zoom out from earth", "globe zoom"],
-    installed: true,
-    featured: false,
-    stars: 445,
-    version: "1.0.0",
-  },
-  {
-    name: "template-shadow-smoke",
-    description: "Mysterious shadow smoke effects with atmospheric fog and depth.",
-    author: "StudioX",
-    category: "template",
-    costEstimate: "15-30",
-    triggers: ["shadow smoke", "smoke effect", "fog effect"],
-    installed: true,
-    featured: false,
-    stars: 389,
-    version: "1.0.0",
-  },
-  {
-    name: "template-animalization",
-    description: "Transform any portrait into an animal hybrid with photorealistic quality.",
-    author: "StudioX",
-    category: "template",
-    costEstimate: "10-20",
-    triggers: ["animalize", "animalization", "turn into animal"],
-    installed: true,
-    featured: false,
-    stars: 756,
-    version: "1.0.0",
-  },
-  {
-    name: "template-raven-transform",
-    description: "Dark raven transformation effect — gothic, cinematic, atmospheric.",
-    author: "StudioX",
-    category: "template",
-    costEstimate: "15-30",
-    triggers: ["raven transform", "raven effect", "dark raven"],
-    installed: true,
-    featured: false,
-    stars: 312,
-    version: "1.0.0",
-  },
-  {
-    name: "template-train-rush",
-    description: "High-speed train rush effect with motion blur and dynamic perspective.",
-    author: "StudioX",
-    category: "template",
-    costEstimate: "20-35",
-    triggers: ["train rush", "train effect", "speeding train"],
-    installed: true,
-    featured: false,
-    stars: 278,
-    version: "1.0.0",
-  },
-  {
-    name: "template-mouth-in",
-    description: "Surreal mouth-pull-in zoom effect popularized on social media.",
-    author: "StudioX",
-    category: "template",
-    costEstimate: "15-25",
-    triggers: ["mouth in", "mouth zoom", "pull into mouth"],
-    installed: true,
-    featured: false,
-    stars: 891,
     version: "1.0.0",
   },
   {
@@ -313,10 +219,45 @@ const SKILL_VISUAL_ASSETS = [
   "/community/community9.jpg",
 ];
 
-const SKILL_VISUAL_BY_NAME: Record<string, string> = BUILT_IN_SKILLS.reduce((acc, skill, idx) => {
-  acc[skill.name] = SKILL_VISUAL_ASSETS[idx % SKILL_VISUAL_ASSETS.length];
-  return acc;
-}, {} as Record<string, string>);
+const LEGACY_TEMPLATE_SLUG_FRAGMENTS = [
+  "fire-lava",
+  "firelava",
+  "air-bending",
+  "earth-zoom",
+  "shadow-smoke",
+  "animalization",
+  "raven-transform",
+  "train-rush",
+  "mouth-in",
+];
+
+const hashString = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const fallbackSkillVisual = (skillName: string) => {
+  const idx = hashString(skillName) % SKILL_VISUAL_ASSETS.length;
+  return SKILL_VISUAL_ASSETS[idx];
+};
+
+const isVideoUrl = (value?: string) => Boolean(value && /(\.mp4|\.mov|\.webm|\.m3u8)(\?|$)/i.test(value));
+
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+
+const cleanText = (value: unknown) =>
+  String(value || "")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const CATEGORY_ICONS = {
   image: Image,
@@ -384,6 +325,7 @@ export default function ClawHubPage() {
   const [activeCategory, setActiveCategory] = useState<Category>("all");
   const [recentJobs, setRecentJobs] = useState<ClawRecentJob[]>([]);
   const [heroMotifMedia, setHeroMotifMedia] = useState<HeroMotifMedia[]>(HERO_MOTIF_MEDIA_FALLBACK);
+  const [communityTemplateSkills, setCommunityTemplateSkills] = useState<SkillEntry[]>([]);
 
   const incomingPrompt = searchParams.get("prompt") || "";
   const incomingAssetUrl = searchParams.get("assetUrl") || "";
@@ -443,12 +385,14 @@ export default function ClawHubPage() {
   }, [user?.uid]);
 
   useEffect(() => {
-    const isVideoUrl = (value?: string) => Boolean(value && /(\.mp4|\.mov|\.webm|\.m3u8)(\?|$)/i.test(value));
-
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(30));
+    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"), limit(120));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        const docs = snapshot.docs
+          .map((docSnap) => ({ id: docSnap.id, data: docSnap.data() as Record<string, any> }))
+          .filter((entry) => entry.data.isDeleted !== true && entry.data.status !== "deleted");
+
         const mapped = snapshot.docs
           .map((docSnap) => {
             const data = docSnap.data() as Record<string, any>;
@@ -495,18 +439,99 @@ export default function ClawHubPage() {
         const prioritized = [...mapped.filter((item) => item.kind === "video"), ...mapped.filter((item) => item.kind === "image")];
         const selected = prioritized.slice(0, 3);
         setHeroMotifMedia(selected.length > 0 ? selected : HERO_MOTIF_MEDIA_FALLBACK);
+
+        type TemplateCandidate = SkillEntry & { _dedupeKey: string };
+        const templateCandidates = docs.reduce<TemplateCandidate[]>((acc, entry) => {
+          const { id, data } = entry;
+          const assetUrl = cleanText(data.assetUrl);
+          const thumbnailUrl = cleanText(data.thumbnailUrl) || assetUrl;
+          const tags = Array.isArray(data.tags) ? data.tags.map((tag: unknown) => cleanText(tag).toLowerCase()).filter(Boolean) : [];
+          const isVideo = data.type === "video" || isVideoUrl(assetUrl);
+          if (!isVideo) return acc;
+          if (tags.includes("legacy-community")) return acc;
+
+          const isTemplateLike = tags.includes("community") || tags.includes("upload") || tags.includes("template");
+          if (!isTemplateLike) return acc;
+
+          const title = cleanText(data.title || data.prompt || `Template ${id.slice(0, 6)}`);
+          if (!title) return acc;
+          const normalizedTitle = slugify(title);
+          if (LEGACY_TEMPLATE_SLUG_FRAGMENTS.some((fragment) => normalizedTitle.includes(fragment))) {
+            return acc;
+          }
+
+          const description =
+            cleanText(data.description) ||
+            cleanText(data.prompt) ||
+            "Live video template synced from community.";
+          const filteredTags = tags.filter((tag) => !["community", "upload", "legacy-community"].includes(tag));
+          const baseTrigger = title
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+          const triggers = Array.from(new Set([baseTrigger, ...filteredTags, "video template"])).filter(Boolean).slice(0, 3);
+          const stars = Number(data.likes || 0) + Number(data.views || 0);
+
+          acc.push({
+            name: `template-${normalizedTitle || id.slice(0, 8)}`,
+            description,
+            author: cleanText(data.author?.name) || "Community",
+            category: "template",
+            costEstimate: "10-40",
+            triggers: triggers.length ? triggers : ["video template"],
+            installed: true,
+            featured: false,
+            stars: Number.isFinite(stars) ? stars : 0,
+            version: "live",
+            visualUrl: thumbnailUrl,
+            sourcePostId: id,
+            _dedupeKey: normalizedTitle || id,
+          });
+          return acc;
+        }, []);
+
+        const seen = new Set<string>();
+        const uniqueTemplates: SkillEntry[] = [];
+        for (const template of templateCandidates) {
+          if (seen.has(template._dedupeKey)) continue;
+          seen.add(template._dedupeKey);
+          uniqueTemplates.push({
+            name: template.name,
+            description: template.description,
+            author: template.author,
+            category: template.category,
+            costEstimate: template.costEstimate,
+            triggers: template.triggers,
+            installed: template.installed,
+            featured: uniqueTemplates.length < 3,
+            stars: template.stars,
+            version: template.version,
+            visualUrl: template.visualUrl,
+            sourcePostId: template.sourcePostId,
+          });
+          if (uniqueTemplates.length >= 12) break;
+        }
+
+        setCommunityTemplateSkills(uniqueTemplates);
       },
       () => {
         setHeroMotifMedia(HERO_MOTIF_MEDIA_FALLBACK);
+        setCommunityTemplateSkills([]);
       }
     );
 
     return () => unsubscribe();
   }, []);
 
+  const allSkills = useMemo(
+    () => [...BASE_SKILLS, ...communityTemplateSkills],
+    [communityTemplateSkills]
+  );
+
   const filtered = useMemo(
     () =>
-      BUILT_IN_SKILLS.filter((skill) => {
+      allSkills.filter((skill) => {
         const text = search.toLowerCase().trim();
         const matchesSearch =
           !text ||
@@ -516,7 +541,7 @@ export default function ClawHubPage() {
         const matchesCategory = activeCategory === "all" || skill.category === activeCategory;
         return matchesSearch && matchesCategory;
       }),
-    [activeCategory, search]
+    [activeCategory, allSkills, search]
   );
 
   const featured = filtered.filter((s) => s.featured);
@@ -557,7 +582,7 @@ export default function ClawHubPage() {
 
             <div className="flex w-full max-w-[360px] flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
-                <MetricCard label="Skills Ready" value={String(BUILT_IN_SKILLS.length)} tone="cyan" />
+                <MetricCard label="Skills Ready" value={String(allSkills.length)} tone="cyan" />
                 <MetricCard label="Recent Jobs" value={String(statusCounts.total)} tone="lime" />
                 <MetricCard label="Completed" value={String(statusCounts.completed)} tone="amber" />
                 <MetricCard label="Failures" value={String(statusCounts.failed)} tone="rose" />
@@ -878,7 +903,9 @@ function SkillCard({ skill, emphasis = false }: { skill: SkillEntry; emphasis?: 
   const Icon = CATEGORY_ICONS[skill.category];
   const colorClass = CATEGORY_COLORS[skill.category];
   const skillVisualUrl =
-    SKILL_VISUAL_BY_NAME[skill.name] || `${ASSET_BASE}/capabilities/capabilities${((skill.stars % 14) + 1).toString()}.png`;
+    skill.visualUrl && !isVideoUrl(skill.visualUrl)
+      ? skill.visualUrl
+      : fallbackSkillVisual(skill.name);
 
   return (
     <article
