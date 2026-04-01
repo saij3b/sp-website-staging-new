@@ -282,6 +282,42 @@ const BUILT_IN_SKILLS: SkillEntry[] = [
   },
 ];
 
+const SKILL_VISUAL_ASSETS = [
+  "/community/community21.webp",
+  "/community/community22.png",
+  "/community/community23.webp",
+  "/community/community24.webp",
+  "/community/community25.png",
+  "/community/community26.webp",
+  "/community/community27.webp",
+  "/community/community28.webp",
+  "/community/community29.webp",
+  "/community/community30.webp",
+  "/community/community31.webp",
+  "/community/community32.webp",
+  "/community/community33.png",
+  "/community/community34.webp",
+  "/community/community35.webp",
+  "/community/community36.webp",
+  "/community/community37.webp",
+  "/community/community38.webp",
+  "/community/community39.webp",
+  "/community/community40.webp",
+  "/community/community41.webp",
+  "/community/community42.webp",
+  "/community/community43.webp",
+  "/community/community44.webp",
+  "/community/community6.jpg",
+  "/community/community7.jpg",
+  "/community/community8.jpg",
+  "/community/community9.jpg",
+];
+
+const SKILL_VISUAL_BY_NAME: Record<string, string> = BUILT_IN_SKILLS.reduce((acc, skill, idx) => {
+  acc[skill.name] = SKILL_VISUAL_ASSETS[idx % SKILL_VISUAL_ASSETS.length];
+  return acc;
+}, {} as Record<string, string>);
+
 const CATEGORY_ICONS = {
   image: Image,
   video: Video,
@@ -841,8 +877,8 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
 function SkillCard({ skill, emphasis = false }: { skill: SkillEntry; emphasis?: boolean }) {
   const Icon = CATEGORY_ICONS[skill.category];
   const colorClass = CATEGORY_COLORS[skill.category];
-  const skillVisualIndex = (skill.stars % 14) + 1;
-  const skillVisualUrl = `${ASSET_BASE}/capabilities/capabilities${skillVisualIndex}.png`;
+  const skillVisualUrl =
+    SKILL_VISUAL_BY_NAME[skill.name] || `${ASSET_BASE}/capabilities/capabilities${((skill.stars % 14) + 1).toString()}.png`;
 
   return (
     <article
