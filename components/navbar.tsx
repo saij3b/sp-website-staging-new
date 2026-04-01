@@ -45,15 +45,26 @@ export function Navbar() {
   }, [user])
 
   useEffect(() => {
-    if (!navRef.current) return
-    const activeEl = navRef.current.querySelector('[data-active="true"]') as HTMLElement
-    if (activeEl) {
+    const syncPill = () => {
+      if (!navRef.current) {
+        setPillStyle({ left: 0, width: 0, opacity: 0 })
+        return
+      }
+      const activeEl = navRef.current.querySelector('[data-active="true"]') as HTMLElement | null
+      if (!activeEl) {
+        setPillStyle({ left: 0, width: 0, opacity: 0 })
+        return
+      }
       setPillStyle({
         left: activeEl.offsetLeft,
         width: activeEl.offsetWidth,
         opacity: 1
       })
     }
+
+    syncPill()
+    window.addEventListener("resize", syncPill)
+    return () => window.removeEventListener("resize", syncPill)
   }, [pathname])
 
   useEffect(() => {
@@ -112,7 +123,7 @@ export function Navbar() {
             : "bg-black/20 backdrop-blur-lg py-5 border-b border-white/5"
         )}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between relative">
+        <div className="max-w-7xl mx-auto flex items-center gap-2 sm:gap-4 relative">
           {/* Logo */}
           <Link
             href="/"
@@ -122,7 +133,7 @@ export function Navbar() {
                   ; (window as any).lenis?.scrollTo(0, { duration: 1.5, easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
               }
             }}
-            className="flex items-center gap-3 group relative z-[110]"
+            className="flex shrink-0 items-center gap-3 group relative z-[110]"
           >
             <img
               src="/studio_logo.svg"
@@ -145,47 +156,49 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <nav ref={navRef} className="hidden md:flex items-center gap-1 p-1.5 rounded-full bg-black/20 backdrop-blur-[32px] border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[110]">
+          <div className="hidden xl:flex flex-1 min-w-0 justify-center px-1 2xl:px-4">
+            <nav ref={navRef} className="relative flex items-center gap-1 p-1.5 rounded-full bg-black/20 backdrop-blur-[32px] border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.3)] max-w-full z-[110]">
 
-            {/* Sliding Pill */}
-            <div
-              className="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-tr from-white to-zinc-200 shadow-[0_2px_10px_rgba(255,255,255,0.3)] pointer-events-none transition-all duration-500 ease-[0.32,0.72,0,1]"
-              style={{
-                left: pillStyle.left,
-                width: pillStyle.width,
-                opacity: pillStyle.opacity
-              }}
-            />
+              {/* Sliding Pill */}
+              <div
+                className="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-tr from-white to-zinc-200 shadow-[0_2px_10px_rgba(255,255,255,0.3)] pointer-events-none transition-all duration-500 ease-[0.32,0.72,0,1]"
+                style={{
+                  left: pillStyle.left,
+                  width: pillStyle.width,
+                  opacity: pillStyle.opacity
+                }}
+              />
 
-            {navLinks.map((link) => {
-              const isActive = link.href === "/"
-                ? pathname === "/"
-                : pathname.startsWith(link.href)
+              {navLinks.map((link) => {
+                const isActive = link.href === "/"
+                  ? pathname === "/"
+                  : pathname.startsWith(link.href)
 
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  data-active={isActive}
-                  className={cn(
-                    "relative px-6 py-2.5 text-[13px] font-black uppercase tracking-widest transition-all duration-300 rounded-full z-10",
-                    isActive 
-                      ? "text-black drop-shadow-sm" 
-                      : "text-zinc-400 hover:text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.3)]"
-                  )}
-                >
-                  {link.label}
-                </Link>
-              )
-            })}
-          </nav>
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    data-active={isActive}
+                    className={cn(
+                      "relative px-4 2xl:px-6 py-2.5 text-[12px] 2xl:text-[13px] font-black uppercase tracking-[0.22em] transition-all duration-300 rounded-full z-10 whitespace-nowrap",
+                      isActive
+                        ? "text-black drop-shadow-sm"
+                        : "text-zinc-400 hover:text-white drop-shadow-[0_1px_8px_rgba(0,0,0,0.3)]"
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                )
+              })}
+            </nav>
+          </div>
 
           {}
-          <div className="flex items-center gap-4 relative z-[110]">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 lg:gap-3 relative z-[110]">
             <Link
               href="/claw/hub"
               className={cn(
-                "hidden md:flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                "hidden 2xl:flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors whitespace-nowrap",
                 isClawLinked
                   ? "border-cyan-300/30 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/20"
                   : "border-white/10 bg-white/[0.03] text-zinc-400 hover:text-white hover:bg-white/[0.08]"
@@ -195,8 +208,8 @@ export function Navbar() {
               {isClawLinked ? "Claw Linked" : "Link Claw"}
             </Link>
             {}
-            <div className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-zinc-900/80 border border-white/10 shadow-lg backdrop-blur-md">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center">
+            <div className="flex items-center gap-2 pl-1 pr-2 sm:pr-3 py-1 rounded-full bg-zinc-900/80 border border-white/10 shadow-lg backdrop-blur-md min-w-0">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shrink-0">
                 <Sparkles className="w-3 h-3 text-white fill-white" />
               </div>
               <span className="text-xs font-semibold text-zinc-100 tabular-nums tracking-wide">{balance}</span>
@@ -206,7 +219,7 @@ export function Navbar() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="hidden md:flex rounded-full w-10 h-10 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all">
+                  <Button variant="ghost" size="icon" className="hidden xl:flex rounded-full w-10 h-10 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all">
                     <div className="h-full w-full rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center">
                       {user.photoURL ? (
                         <img
@@ -258,7 +271,7 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <div className="hidden md:block">
+              <div className="hidden xl:block">
                 <Button asChild className="rounded-full px-6 bg-white text-black hover:bg-zinc-200 hover:scale-105 transition-all duration-300 font-semibold text-sm h-10">
                   <Link href="/login">Get Started</Link>
                 </Button>
@@ -268,7 +281,7 @@ export function Navbar() {
             {}
             <button
               className={cn(
-                "md:hidden relative z-[110] w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300",
+                "xl:hidden relative z-[110] w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300",
                 mobileMenuOpen
                   ? "bg-zinc-900 border border-white/20 text-white shadow-xl"
                   : "bg-white border border-zinc-200 text-black shadow-[0_4px_14px_rgba(0,0,0,0.15)] hover:bg-zinc-100"
