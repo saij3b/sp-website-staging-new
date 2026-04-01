@@ -53,141 +53,6 @@ interface ClawRecentJob {
   createdAt?: string;
 }
 
-const BASE_SKILLS: SkillEntry[] = [
-  {
-    name: "image-gen",
-    description: "Generate images from text prompts using 13 models including Flux, Seedream, and SDXL.",
-    author: "StudioX",
-    category: "image",
-    costEstimate: "2-10",
-    triggers: ["generate", "image of", "create an image"],
-    installed: true,
-    featured: true,
-    stars: 1247,
-    version: "1.0.0",
-  },
-  {
-    name: "video-gen",
-    description: "Generate videos from text prompts using Sora 2, Kling 3.0, and more.",
-    author: "StudioX",
-    category: "video",
-    costEstimate: "10-100",
-    triggers: ["create a video", "generate a video", "video of"],
-    installed: true,
-    featured: true,
-    stars: 892,
-    version: "1.0.0",
-  },
-  {
-    name: "upscale",
-    description: "Upscale any image to 4K resolution with AI enhancement.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "5-15",
-    triggers: ["upscale", "enhance image", "4k upscale"],
-    installed: true,
-    featured: false,
-    stars: 445,
-    version: "1.0.0",
-  },
-  {
-    name: "remix",
-    description: "Remix your existing creations with new prompts while keeping style.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "5-20",
-    triggers: ["remix", "remix this", "create variation"],
-    installed: true,
-    featured: true,
-    stars: 567,
-    version: "1.0.0",
-  },
-  {
-    name: "smart-model-picker",
-    description: "Auto-selects the best model for your request based on quality and cost.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "0",
-    triggers: ["pick model", "best model for", "suggest model"],
-    installed: true,
-    featured: false,
-    stars: 334,
-    version: "1.0.0",
-  },
-  {
-    name: "prompt-enhance",
-    description: "AI-improves your raw prompt for better generation results.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "1-2",
-    triggers: ["enhance prompt", "improve prompt", "better prompt for"],
-    installed: true,
-    featured: false,
-    stars: 289,
-    version: "1.0.0",
-  },
-  {
-    name: "batch",
-    description: "Generate multiple variations at once. Up to 10 images in a single command.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "varies",
-    triggers: ["batch generate", "generate 5", "create multiple"],
-    installed: true,
-    featured: false,
-    stars: 198,
-    version: "1.0.0",
-  },
-  {
-    name: "character-consistency",
-    description: "Maintain a consistent character across multiple generations.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "10-25",
-    triggers: ["character", "same character", "consistent character"],
-    installed: true,
-    featured: false,
-    stars: 412,
-    version: "1.0.0",
-  },
-  {
-    name: "style-profile",
-    description: "Save and load your personal style preferences for consistent results.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "0",
-    triggers: ["save style", "load style", "style profile", "my style"],
-    installed: true,
-    featured: false,
-    stars: 167,
-    version: "1.0.0",
-  },
-  {
-    name: "community-post",
-    description: "Publish your creations to the StudioX community feed.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "0",
-    triggers: ["post to community", "share creation", "publish"],
-    installed: true,
-    featured: false,
-    stars: 223,
-    version: "1.0.0",
-  },
-  {
-    name: "credit-check",
-    description: "Check your credit balance and get personalized recommendations.",
-    author: "StudioX",
-    category: "utility",
-    costEstimate: "0",
-    triggers: ["credits", "balance", "how many credits"],
-    installed: true,
-    featured: false,
-    stars: 156,
-    version: "1.0.0",
-  },
-];
-
 const SKILL_VISUAL_ASSETS = [
   "/community/community21.webp",
   "/community/community22.png",
@@ -416,6 +281,10 @@ export default function ClawHubPage() {
               .toString()
               .replace(/\s+/g, " ")
               .trim();
+            const normalizedCaption = slugify(captionRaw);
+            if (LEGACY_TEMPLATE_SLUG_FRAGMENTS.some((fragment) => normalizedCaption.includes(fragment))) {
+              return null;
+            }
 
             return {
               key: docSnap.id,
@@ -437,7 +306,13 @@ export default function ClawHubPage() {
           .filter((entry): entry is HeroMotifMedia => Boolean(entry));
 
         const prioritized = [...mapped.filter((item) => item.kind === "video"), ...mapped.filter((item) => item.kind === "image")];
-        const selected = prioritized.slice(0, 3);
+        const heroSeen = new Set<string>();
+        const selected = prioritized.filter((item) => {
+          const heroKey = slugify(item.caption || item.alt || item.key);
+          if (heroSeen.has(heroKey)) return false;
+          heroSeen.add(heroKey);
+          return true;
+        }).slice(0, 3);
         setHeroMotifMedia(selected.length > 0 ? selected : HERO_MOTIF_MEDIA_FALLBACK);
 
         type TemplateCandidate = SkillEntry & { _dedupeKey: string };
@@ -450,9 +325,6 @@ export default function ClawHubPage() {
           if (!isVideo) return acc;
           if (tags.includes("legacy-community")) return acc;
 
-          const isTemplateLike = tags.includes("community") || tags.includes("upload") || tags.includes("template");
-          if (!isTemplateLike) return acc;
-
           const title = cleanText(data.title || data.prompt || `Template ${id.slice(0, 6)}`);
           if (!title) return acc;
           const normalizedTitle = slugify(title);
@@ -463,21 +335,21 @@ export default function ClawHubPage() {
           const description =
             cleanText(data.description) ||
             cleanText(data.prompt) ||
-            "Live video template synced from community.";
+            "Live video workflow synced from the current community feed.";
           const filteredTags = tags.filter((tag) => !["community", "upload", "legacy-community"].includes(tag));
           const baseTrigger = title
             .toLowerCase()
             .replace(/[^a-z0-9\s]/g, " ")
             .replace(/\s+/g, " ")
             .trim();
-          const triggers = Array.from(new Set([baseTrigger, ...filteredTags, "video template"])).filter(Boolean).slice(0, 3);
+          const triggers = Array.from(new Set([baseTrigger, ...filteredTags, "live video"])).filter(Boolean).slice(0, 3);
           const stars = Number(data.likes || 0) + Number(data.views || 0);
 
           acc.push({
-            name: `template-${normalizedTitle || id.slice(0, 8)}`,
+            name: title,
             description,
             author: cleanText(data.author?.name) || "Community",
-            category: "template",
+            category: "video",
             costEstimate: "10-40",
             triggers: triggers.length ? triggers : ["video template"],
             installed: true,
@@ -524,10 +396,7 @@ export default function ClawHubPage() {
     return () => unsubscribe();
   }, []);
 
-  const allSkills = useMemo(
-    () => [...BASE_SKILLS, ...communityTemplateSkills],
-    [communityTemplateSkills]
-  );
+  const allSkills = useMemo(() => communityTemplateSkills, [communityTemplateSkills]);
 
   const filtered = useMemo(
     () =>
@@ -582,7 +451,7 @@ export default function ClawHubPage() {
 
             <div className="flex w-full max-w-[360px] flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
-                <MetricCard label="Skills Ready" value={String(allSkills.length)} tone="cyan" />
+                <MetricCard label="Live Templates" value={String(allSkills.length)} tone="cyan" />
                 <MetricCard label="Recent Jobs" value={String(statusCounts.total)} tone="lime" />
                 <MetricCard label="Completed" value={String(statusCounts.completed)} tone="amber" />
                 <MetricCard label="Failures" value={String(statusCounts.failed)} tone="rose" />
@@ -634,16 +503,19 @@ export default function ClawHubPage() {
                           {media.label}
                         </span>
                       </div>
-                      <p className="truncate px-2 py-1.5 text-[9px] font-medium tracking-[0.06em] text-zinc-300" title={media.caption}>
+                      <p
+                        className="min-h-[2.2rem] px-2 py-1.5 text-[9px] font-medium leading-[1.15] tracking-[0.04em] text-zinc-300"
+                        title={media.caption}
+                      >
                         {media.caption}
                       </p>
                     </article>
                   ))}
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
-                    <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5">Tap-ready</span>
-                    <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5">Mobile-first</span>
-                    <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5">Community sync</span>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[8px] uppercase tracking-[0.12em] text-zinc-400 sm:text-[9px]">
+                    <span className="whitespace-nowrap rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1">Tap-ready</span>
+                    <span className="whitespace-nowrap rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1">Mobile-first</span>
+                    <span className="whitespace-nowrap rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1">Community sync</span>
                   </div>
                 </div>
               </div>
@@ -814,7 +686,7 @@ export default function ClawHubPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search skills, triggers, workflows..."
+                placeholder="Search live templates, triggers, workflows..."
                 className="h-11 rounded-xl border-white/15 bg-white/[0.03] pl-10 text-white placeholder:text-zinc-500"
               />
             </div>
@@ -841,7 +713,7 @@ export default function ClawHubPage() {
           <section className="mt-8">
             <div className="mb-4 flex items-center gap-2 text-zinc-300">
               <Sparkles className="h-4 w-4 text-cyan-200" />
-              <h2 className="text-sm uppercase tracking-[0.24em]">Featured Workflows</h2>
+              <h2 className="text-sm uppercase tracking-[0.24em]">Featured Community Workflows</h2>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {featured.map((skill) => (
@@ -855,7 +727,7 @@ export default function ClawHubPage() {
           <section className="mt-8">
             <div className="mb-4 flex items-center gap-2 text-zinc-300">
               <Compass className="h-4 w-4 text-lime-200" />
-              <h2 className="text-sm uppercase tracking-[0.24em]">All Skills</h2>
+              <h2 className="text-sm uppercase tracking-[0.24em]">Live Community Templates</h2>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rest.map((skill) => (
@@ -867,7 +739,7 @@ export default function ClawHubPage() {
 
         {filtered.length === 0 && (
           <section className="mt-14 rounded-2xl border border-white/10 bg-white/[0.03] p-10 text-center text-zinc-400">
-            No skills match “{search}”. Try a broader keyword.
+            No live templates match “{search}”. Try a broader keyword.
           </section>
         )}
 
