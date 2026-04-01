@@ -31,6 +31,8 @@ const pricingPlans: PricingPlan[] = [
     queuePriority: "Standard",
     support: "Email",
     bestFor: "Casual creators",
+    stripeMonthlyLink: "https://buy.stripe.com/9B6fZj2Se4AObFD8iigYU0c",
+    stripeYearlyLink: "https://buy.stripe.com/3cIcN764q2sG9xv0PQgYU0r",
   },
   {
     id: "pro",
@@ -56,13 +58,15 @@ const pricingPlans: PricingPlan[] = [
     queuePriority: "Priority",
     support: "Priority Email",
     bestFor: "Freelancers & teams",
+    stripeMonthlyLink: "https://buy.stripe.com/cNicN764q6IW5hfaqqgYU0i",
+    stripeYearlyLink: "https://buy.stripe.com/aFadRb0K62sGgZXbuugYU0k",
     tiers: [
-      { credits: 18000, price: 79, yearlyPrice: 758 },
-      { credits: 24000, price: 105, yearlyPrice: 1008 },
-      { credits: 30000, price: 129, yearlyPrice: 1238 },
-      { credits: 38000, price: 159, yearlyPrice: 1526 },
-      { credits: 45000, price: 189, yearlyPrice: 1814 },
-      { credits: 60000, price: 249, yearlyPrice: 2390 },
+      { credits: 18000, price: 79, yearlyPrice: 758, stripeMonthlyLink: "https://buy.stripe.com/cNicN764q6IW5hfaqqgYU0i", stripeYearlyLink: "https://buy.stripe.com/aFadRb0K62sGgZXbuugYU0k" },
+      { credits: 24000, price: 105, yearlyPrice: 1008, stripeMonthlyLink: "https://buy.stripe.com/5kQ8wRfF09V810Z1TUgYU0f", stripeYearlyLink: "https://buy.stripe.com/14AdRb64q9V8cJHeGGgYU0o" },
+      { credits: 30000, price: 129, yearlyPrice: 1238, stripeMonthlyLink: "https://buy.stripe.com/3cI4gBboKffs6lj9mmgYU0h", stripeYearlyLink: "https://buy.stripe.com/7sY28t9gCebo5hf9mmgYU0n" },
+      { credits: 38000, price: 159, yearlyPrice: 1526, stripeMonthlyLink: "https://buy.stripe.com/5kQ4gBboKffs4dbcyygYU0d", stripeYearlyLink: "https://buy.stripe.com/8x2cN79gC0ky397eGGgYU0m" },
+      { credits: 45000, price: 189, yearlyPrice: 1814, stripeMonthlyLink: "https://buy.stripe.com/14AcN7boKebo9xv422gYU0e", stripeYearlyLink: "https://buy.stripe.com/aFacN73Wi4AOcJH2XYgYU0q" },
+      { credits: 60000, price: 249, yearlyPrice: 2390, stripeMonthlyLink: "https://buy.stripe.com/fZu9AVgJ4aZc5hfcyygYU0g", stripeYearlyLink: "https://buy.stripe.com/6oU5kF78uffsaBzaqqgYU0p" },
     ],
   },
   {
@@ -88,6 +92,8 @@ const pricingPlans: PricingPlan[] = [
     queuePriority: "Priority",
     support: "Priority Email",
     bestFor: "Agencies & power users",
+    stripeMonthlyLink: "https://buy.stripe.com/3cI8wR64qebobFDeGGgYU0b",
+    stripeYearlyLink: "https://buy.stripe.com/5kQfZj1Oa1oCdNL1TUgYU0j",
   },
 ]
 

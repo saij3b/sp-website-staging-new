@@ -6,7 +6,6 @@ import type { PricingPlan } from "@/lib/types"
 import { motion, useMotionTemplate, useMotionValue, AnimatePresence } from "framer-motion"
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
-import { api } from "@/lib/api"
 
 interface PricingCardProps {
   plan: PricingPlan
@@ -17,7 +16,6 @@ interface PricingCardProps {
 export function PricingCard({ plan, index = 0, billingCycle = "monthly" }: PricingCardProps) {
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
-  const [loading, setLoading] = useState(false)
   const [tierIndex, setTierIndex] = useState(0)
 
   const currentTier = plan.tiers ? plan.tiers[tierIndex] : null
@@ -37,22 +35,21 @@ export function PricingCard({ plan, index = 0, billingCycle = "monthly" }: Prici
     mouseY.set(clientY - top)
   }
 
-  const handlePurchase = async () => {
-    if (loading) return
-    setLoading(true)
-    try {
-      await api.adminCredits({
-        amount: plan.credits,
-        plan: plan.id,
-        description: `Purchase of ${plan.name} plan`
-      })
-      alert(`Successfully purchased ${plan.name} plan!`)
-    } catch (e) {
-      console.error("Purchase failed:", e)
-      alert("Purchase failed. Please try again.")
-    } finally {
-      setLoading(false)
+  const handlePurchase = () => {
+    const stripeLink = currentTier
+      ? billingCycle === "yearly"
+        ? currentTier.stripeYearlyLink
+        : currentTier.stripeMonthlyLink
+      : billingCycle === "yearly"
+        ? plan.stripeYearlyLink
+        : plan.stripeMonthlyLink
+
+    if (!stripeLink) {
+      alert("Checkout is not configured for this plan yet.")
+      return
     }
+
+    window.open(stripeLink, "_blank", "noopener,noreferrer")
   }
 
   return (
@@ -278,7 +275,6 @@ export function PricingCard({ plan, index = 0, billingCycle = "monthly" }: Prici
         {}
         <Button
           onClick={handlePurchase}
-          disabled={loading}
           className={cn(
             "w-full h-12 rounded-xl text-sm font-semibold transition-all duration-300 relative overflow-hidden mb-8",
             plan.popular
@@ -287,8 +283,8 @@ export function PricingCard({ plan, index = 0, billingCycle = "monthly" }: Prici
           )}
         >
           <span className="relative z-10 flex items-center justify-center gap-2">
-            {loading ? "Processing..." : "Subscribe"}
-            {!loading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
+            Subscribe
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </span>
         </Button>
 
