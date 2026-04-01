@@ -297,9 +297,24 @@ const CATEGORY_COLORS = {
 };
 
 const HERO_MOTIF_MEDIA = [
-  { src: `${ASSET_BASE}/capabilities/capabilities3.png`, alt: "Image generation motif", rotate: "-3deg", y: "0px", z: 30 },
-  { src: `${ASSET_BASE}/capabilities/capabilities8.png`, alt: "Video generation motif", rotate: "4deg", y: "8px", z: 20 },
-  { src: `${ASSET_BASE}/capabilities/capabilities12.png`, alt: "Community motif", rotate: "-7deg", y: "16px", z: 10 },
+  {
+    src: `${ASSET_BASE}/capabilities/capabilities3.png`,
+    alt: "Image generation motif",
+    label: "Image",
+    accent: "border-cyan-200/40 bg-cyan-300/12 text-cyan-100",
+  },
+  {
+    src: `${ASSET_BASE}/capabilities/capabilities8.png`,
+    alt: "Video generation motif",
+    label: "Video",
+    accent: "border-amber-200/40 bg-amber-300/12 text-amber-100",
+  },
+  {
+    src: `${ASSET_BASE}/capabilities/capabilities12.png`,
+    alt: "Community motif",
+    label: "Community",
+    accent: "border-lime-200/40 bg-lime-300/12 text-lime-100",
+  },
 ];
 
 type Category = "all" | "image" | "video" | "template" | "utility";
@@ -428,27 +443,35 @@ export default function ClawHubPage() {
                 <MetricCard label="Failures" value={String(statusCounts.failed)} tone="rose" />
               </div>
 
-              <div className="relative h-40 overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-3">
+              <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-3">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] via-transparent to-transparent" />
-                <div className="relative h-full">
+                <div className="relative">
+                  <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-cyan-100">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Live command motifs
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
                   {HERO_MOTIF_MEDIA.map((media, index) => (
                     <div
                       key={media.src}
-                      className="absolute top-2 w-32 overflow-hidden rounded-xl border border-white/15 bg-white/[0.04] shadow-[0_16px_45px_rgba(0,0,0,0.45)]"
-                      style={{
-                        left: `${index * 26}px`,
-                        transform: `translateY(${media.y}) rotate(${media.rotate})`,
-                        zIndex: media.z,
-                      }}
+                      className={cn(
+                        "overflow-hidden rounded-xl border border-white/15 bg-white/[0.04] shadow-[0_16px_36px_rgba(0,0,0,0.4)]",
+                        index === 1 ? "translate-y-1" : index === 2 ? "translate-y-2" : ""
+                      )}
                     >
-                      <img src={media.src} alt={media.alt} className="h-24 w-full object-cover" />
-                      <div className="px-2 py-1 text-[9px] uppercase tracking-[0.16em] text-zinc-300">
-                        {index === 0 ? "Image" : index === 1 ? "Video" : "Community"}
+                      <img src={media.src} alt={media.alt} className="h-20 w-full object-cover" />
+                      <div className="px-2 py-1.5">
+                        <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-[0.16em]", media.accent)}>
+                          {media.label}
+                        </span>
                       </div>
                     </div>
                   ))}
-                  <div className="absolute bottom-2 right-1 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.16em] text-cyan-100">
-                    Live command motifs
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
+                    <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5">Tap-ready</span>
+                    <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5">Mobile-first</span>
+                    <span className="rounded-full border border-white/15 bg-white/[0.04] px-2 py-0.5">Community sync</span>
                   </div>
                 </div>
               </div>
