@@ -153,7 +153,7 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center bg-[#050505] px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">
+        <div className="relative flex min-h-[calc(100vh-4rem)] flex-col items-center justify-start overflow-x-hidden overflow-y-auto bg-[#050505] px-4 pt-28 pb-12 sm:px-6 md:justify-center md:py-12 lg:px-8">
 
             { }
             <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-purple-900/10 rounded-full blur-[120px] pointer-events-none" />
@@ -171,13 +171,13 @@ export default function LoginPage() {
                             src="/studio_logo.svg"
                             alt="StudioX Icon"
                             draggable="false"
-                            className="h-24 md:h-32 w-auto object-contain filter drop-shadow-[0_0_40px_rgba(168,85,247,0.55)] select-none z-10"
+                            className="h-20 md:h-32 w-auto object-contain filter drop-shadow-[0_0_40px_rgba(168,85,247,0.55)] select-none z-10"
                         />
                         <img
                             src="/studio_brandname.svg"
                             alt="StudioX"
                             draggable="false"
-                            className="h-12 md:h-16 w-auto object-contain filter drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] select-none -mt-8 md:-mt-14"
+                            className="h-10 md:h-16 w-auto object-contain filter drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] select-none -mt-4 md:-mt-14"
                         />
                     </div>
                 </div>
