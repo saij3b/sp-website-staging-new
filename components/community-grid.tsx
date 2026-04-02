@@ -8,6 +8,51 @@ import { db } from "@/lib/firebaseClient"
 import type { CommunityPost } from "@/lib/types"
 import { mapCommunityPost } from "@/lib/community-post"
 
+const LEGACY_TEMPLATE_SLUG_FRAGMENTS = [
+    "fire-lava",
+    "air-bending",
+    "earth-zoom",
+    "shadow-smoke",
+    "animalization",
+    "raven-transform",
+    "train-rush",
+    "mouth-in",
+]
+
+function slugify(value: string) {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+}
+
+function getPostTags(post: CommunityPost) {
+    return (post.tags || []).map((tag) => tag.toLowerCase())
+}
+
+function isLegacyTemplatePost(post: CommunityPost) {
+    const tags = getPostTags(post)
+    const slug = slugify(post.title || "")
+    return (
+        tags.includes("legacy-template") ||
+        tags.includes("legacy-community") ||
+        tags.includes("legacy-migration") ||
+        LEGACY_TEMPLATE_SLUG_FRAGMENTS.some((fragment) => slug.includes(fragment))
+    )
+}
+
+function isTemplatePost(post: CommunityPost) {
+    if (isLegacyTemplatePost(post)) return false
+    const tags = getPostTags(post)
+    const platform = (post.generationPlatform || "").toLowerCase()
+    return (
+        tags.includes("template") ||
+        tags.includes("workflow") ||
+        platform.includes("template") ||
+        (post.type === "video" && post.allowRemix)
+    )
+}
+
 export function CommunityGrid() {
     const gridRef = useRef<HTMLDivElement>(null)
     const searchParams = useSearchParams()
@@ -90,7 +135,15 @@ export function CommunityGrid() {
             });
         }
 
-        if (quickFilter === "directed") {
+        if (quickFilter === "works") {
+            finalArray = finalArray.filter((post) => !isLegacyTemplatePost(post) && !isTemplatePost(post));
+        } else if (quickFilter === "templates") {
+            finalArray = finalArray.filter((post) => isTemplatePost(post));
+        } else if (quickFilter === "video") {
+            finalArray = finalArray.filter((post) => post.type === "video");
+        } else if (quickFilter === "image") {
+            finalArray = finalArray.filter((post) => post.type === "image");
+        } else if (quickFilter === "directed") {
             finalArray = finalArray.filter((post) => Boolean(post.campaign?.directed));
         } else if (quickFilter === "remixable") {
             finalArray = finalArray.filter((post) => post.allowRemix);
