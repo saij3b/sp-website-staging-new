@@ -471,13 +471,10 @@ export default function ClawHubPage() {
                     Live command motifs
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                  {heroMotifMedia.map((media, index) => (
+                  {heroMotifMedia.map((media) => (
                     <article
                       key={media.key}
-                      className={cn(
-                        "overflow-hidden rounded-xl border border-white/15 bg-white/[0.04] shadow-[0_16px_36px_rgba(0,0,0,0.4)]",
-                        index === 1 ? "md:translate-y-1" : index === 2 ? "md:translate-y-2" : ""
-                      )}
+                      className="overflow-hidden rounded-xl border border-white/15 bg-white/[0.04] shadow-[0_16px_36px_rgba(0,0,0,0.4)]"
                     >
                       <div className="relative h-24 w-full overflow-hidden bg-black/40">
                         {media.kind === "video" ? (
