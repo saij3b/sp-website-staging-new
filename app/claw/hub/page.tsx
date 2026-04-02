@@ -42,6 +42,8 @@ interface SkillEntry {
   stars: number;
   version: string;
   visualUrl?: string;
+  visualPosterUrl?: string;
+  visualKind?: "image" | "video";
   sourcePostId?: string;
 }
 
@@ -356,7 +358,9 @@ export default function ClawHubPage() {
             featured: false,
             stars: Number.isFinite(stars) ? stars : 0,
             version: "live",
-            visualUrl: thumbnailUrl,
+            visualUrl: assetUrl,
+            visualPosterUrl: thumbnailUrl || undefined,
+            visualKind: "video",
             sourcePostId: id,
             _dedupeKey: normalizedTitle || id,
           });
@@ -380,6 +384,8 @@ export default function ClawHubPage() {
             stars: template.stars,
             version: template.version,
             visualUrl: template.visualUrl,
+            visualPosterUrl: template.visualPosterUrl,
+            visualKind: template.visualKind,
             sourcePostId: template.sourcePostId,
           });
           if (uniqueTemplates.length >= 12) break;
@@ -512,10 +518,10 @@ export default function ClawHubPage() {
                     </article>
                   ))}
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[8px] uppercase tracking-[0.12em] text-zinc-400 sm:text-[9px]">
-                    <span className="whitespace-nowrap rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1">Tap-ready</span>
-                    <span className="whitespace-nowrap rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1">Mobile-first</span>
-                    <span className="whitespace-nowrap rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1">Community sync</span>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-[8px] uppercase tracking-[0.08em] text-zinc-400 sm:text-[9px]">
+                    <span className="flex min-w-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] px-2 py-1 text-center">Tap-ready</span>
+                    <span className="flex min-w-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] px-2 py-1 text-center">Mobile-first</span>
+                    <span className="col-span-2 flex min-w-0 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] px-2 py-1 text-center">Community sync</span>
                   </div>
                 </div>
               </div>
@@ -774,10 +780,9 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
 function SkillCard({ skill, emphasis = false }: { skill: SkillEntry; emphasis?: boolean }) {
   const Icon = CATEGORY_ICONS[skill.category];
   const colorClass = CATEGORY_COLORS[skill.category];
-  const skillVisualUrl =
-    skill.visualUrl && !isVideoUrl(skill.visualUrl)
-      ? skill.visualUrl
-      : fallbackSkillVisual(skill.name);
+  const skillVisualUrl = skill.visualUrl || fallbackSkillVisual(skill.name);
+  const skillPosterUrl = skill.visualPosterUrl || (!isVideoUrl(skillVisualUrl) ? skillVisualUrl : undefined) || fallbackSkillVisual(skill.name);
+  const showsVideoPreview = skill.visualKind === "video" && Boolean(skill.visualUrl);
 
   return (
     <article
@@ -788,12 +793,26 @@ function SkillCard({ skill, emphasis = false }: { skill: SkillEntry; emphasis?: 
     >
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.06] via-transparent to-transparent opacity-70" />
       <div className="relative flex h-full flex-col gap-3">
-        <div className="overflow-hidden rounded-xl border border-white/10 bg-black/25">
-          <img
-            src={skillVisualUrl}
-            alt={`${skill.name} visual`}
-            className="h-24 w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-          />
+        <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/25">
+          {showsVideoPreview ? (
+            <video
+              src={skillVisualUrl}
+              poster={skillPosterUrl}
+              className="h-24 w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            <img
+              src={skillPosterUrl}
+              alt={`${skill.name} visual`}
+              className="h-24 w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            />
+          )}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
         </div>
 
         <div className="flex items-start justify-between">
