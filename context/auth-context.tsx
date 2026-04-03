@@ -11,13 +11,16 @@ import {
     createUserWithEmailAndPassword,
     signOut,
     updateProfile,
+    sendEmailVerification,
     RecaptchaVerifier,
     signInWithPhoneNumber,
     ConfirmationResult
 } from "firebase/auth";
 import { auth } from "@/lib/firebaseClient";
-import { createUserDoc } from "@/lib/db";
+import { createUserDoc, INITIAL_TOKEN_BALANCE } from "@/lib/db";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebaseClient";
+import { doc, getDoc } from "firebase/firestore";
 
 interface AuthContextType {
     user: User | null;
@@ -60,7 +63,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     
     const fetchCredits = async (userId: string) => {
-        setCredits(100); 
+        try {
+            const userRef = doc(db, "users", userId);
+            const userSnap = await getDoc(userRef);
+            if (!userSnap.exists()) {
+                setCredits(INITIAL_TOKEN_BALANCE);
+                return;
+            }
+            setCredits(userSnap.data()?.tokenBalance ?? INITIAL_TOKEN_BALANCE);
+        } catch (error) {
+            console.warn("Failed to fetch credits from Firestore, using fallback balance.", error);
+            setCredits(INITIAL_TOKEN_BALANCE);
+        }
     };
 
     useEffect(() => {
@@ -114,6 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
             const user = userCredential.user;
             await updateProfile(user, { displayName: name });
+            await createUserDoc(user);
+            await sendEmailVerification(user);
+            await signOut(auth);
             return user;
         } catch (error) {
             console.error("Error signing up:", error);
