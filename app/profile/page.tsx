@@ -84,8 +84,19 @@ function ProfileContent() {
 
     let isMounted = true;
     const uid = user.uid
+    const createdAt = user.metadata.creationTime ? new Date(user.metadata.creationTime).getTime() : null
+    const isFreshAccount = createdAt ? Date.now() - createdAt < 10 * 60 * 1000 : false
+    const hasLocalHistory =
+      typeof window !== "undefined" && Boolean(window.localStorage.getItem("studio_generations_history"))
+
     async function loadCreations() {
       setLoadingCreations(true)
+      if (isFreshAccount && !hasLocalHistory) {
+        setCreations([])
+        setLoadingCreations(false)
+        return
+      }
+
       try {
         const getUserCreations = httpsCallable(functions, "getUserCreations")
         const [remoteResult, persistedResult] = await Promise.allSettled([
