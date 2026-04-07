@@ -103,8 +103,8 @@ export interface CommunityPost {
   views: number
   allowRemix: boolean
   createdAt: Date
-  remixSourceId?: string 
-  parentAssetId?: string 
+  remixSourceId?: string
+  parentAssetId?: string
   type: "image" | "video"
   prompt: string
   tags: string[]

@@ -21,18 +21,18 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-4">
           { }
           <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 group">
+            <Link href="/" className="flex items-center group">
               <img
                 src="/studio_logo.svg"
                 alt="StudioX Icon"
                 draggable="false"
-                className="h-16 md:h-20 w-auto object-contain brightness-0 invert opacity-80 group-hover:opacity-100 transition-all select-none"
+                className="h-16 md:h-20 w-auto object-contain brightness-0 invert opacity-80 group-hover:opacity-100 transition-all select-none z-10"
               />
               <img
                 src="/studio_brandname.svg"
                 alt="StudioX"
                 draggable="false"
-                className="h-10 md:h-12 w-auto object-contain brightness-0 invert opacity-80 group-hover:opacity-100 transition-all select-none hidden sm:block"
+                className="h-10 md:h-12 w-auto object-contain brightness-0 invert opacity-80 group-hover:opacity-100 transition-all select-none hidden sm:block -ml-4 md:-ml-6"
               />
             </Link>
 
