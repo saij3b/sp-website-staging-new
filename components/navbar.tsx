@@ -141,7 +141,7 @@ export function Navbar() {
               draggable="false"
               className={cn(
                 "object-contain w-auto transition-all duration-300 opacity-90 group-hover:opacity-100 select-none filter drop-shadow-[0_0_15px_rgba(255,255,255,0.25)] origin-left",
-                scrolled ? "h-10" : "h-11"
+                scrolled ? "h-12" : "h-14"
               )}
             />
           </Link>
