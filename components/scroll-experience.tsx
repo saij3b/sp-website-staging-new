@@ -12,7 +12,7 @@ import { WorkflowStepState } from "@/components/scroll-states/workflow-step-stat
 
 
 const TOTAL_STATES = 4
-const SCROLL_HEIGHT_PER_STATE = 200
+const SCROLL_HEIGHT_PER_STATE = 95
 
 export function ScrollExperience() {
     const containerRef = useRef<HTMLDivElement>(null)
@@ -51,7 +51,13 @@ export function ScrollExperience() {
                         start: "top top",
                         end: `+=${TOTAL_STATES * SCROLL_HEIGHT_PER_STATE}%`,
                         pin: true,
-                        scrub: 0.6,
+                        scrub: 0.25,
+                        snap: {
+                            snapTo: 1 / (TOTAL_STATES - 1),
+                            duration: { min: 0.15, max: 0.35 },
+                            delay: 0.02,
+                            ease: "power2.out",
+                        },
                         onUpdate: (self) => {
                             const globalProgress = self.progress
                             const currentIndex = Math.min(TOTAL_STATES - 1, Math.floor(globalProgress * TOTAL_STATES))
