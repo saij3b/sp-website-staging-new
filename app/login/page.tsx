@@ -168,16 +168,10 @@ export default function LoginPage() {
                 <div className="text-center mb-8">
                     <div className="flex flex-col items-center transition-all duration-500 hover:scale-105">
                         <img
-                            src="/brand/studiox-icon.png"
-                            alt="StudioX Icon"
-                            draggable="false"
-                            className="h-16 md:h-20 w-auto object-contain filter drop-shadow-[0_0_40px_rgba(168,85,247,0.55)] select-none z-10"
-                        />
-                        <img
-                            src="/brand/studiox-wordmark.png"
+                            src="/brand/studiox-lockup.png"
                             alt="StudioX"
                             draggable="false"
-                            className="h-7 md:h-9 w-auto object-contain filter drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] select-none -mt-1 md:-mt-2"
+                            className="h-28 md:h-32 w-auto object-contain filter drop-shadow-[0_0_40px_rgba(168,85,247,0.55)] select-none z-10"
                         />
                     </div>
                 </div>
