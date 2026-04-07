@@ -171,13 +171,13 @@ export default function LoginPage() {
                             src="/brand/studiox-icon.png"
                             alt="StudioX Icon"
                             draggable="false"
-                            className="h-20 md:h-32 w-auto object-contain filter drop-shadow-[0_0_40px_rgba(168,85,247,0.55)] select-none z-10"
+                            className="h-16 md:h-20 w-auto object-contain filter drop-shadow-[0_0_40px_rgba(168,85,247,0.55)] select-none z-10"
                         />
                         <img
                             src="/brand/studiox-wordmark.png"
                             alt="StudioX"
                             draggable="false"
-                            className="h-10 md:h-16 w-auto object-contain filter drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] select-none -mt-4 md:-mt-14"
+                            className="h-7 md:h-9 w-auto object-contain filter drop-shadow-[0_0_30px_rgba(168,85,247,0.4)] select-none -mt-1 md:-mt-2"
                         />
                     </div>
                 </div>
