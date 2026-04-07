@@ -136,21 +136,21 @@ export function Navbar() {
             className="flex shrink-0 items-center gap-3 group relative z-[110]"
           >
             <img
-              src="/studio_logo.svg"
+              src="/brand/studiox-icon.png"
               alt="StudioX"
               draggable="false"
               className={cn(
-                "md:hidden object-contain w-auto transition-all duration-300 brightness-0 invert opacity-90 group-hover:opacity-100 select-none filter drop-shadow-[0_0_15px_rgba(255,255,255,0.25)] origin-left",
-                scrolled ? "h-10 scale-110" : "h-12 scale-125 md:scale-150"
+                "object-contain w-auto transition-all duration-300 opacity-90 group-hover:opacity-100 select-none filter drop-shadow-[0_0_15px_rgba(255,255,255,0.25)] origin-left",
+                scrolled ? "h-10 scale-105" : "h-12 scale-110"
               )}
             />
             <img
-              src="/comb_logo.svg"
+              src="/brand/studiox-wordmark.png"
               alt="StudioX"
               draggable="false"
               className={cn(
-                "hidden md:block object-contain w-auto transition-all duration-300 brightness-0 invert opacity-90 group-hover:opacity-100 select-none filter drop-shadow-[0_0_15px_rgba(255,255,255,0.25)] origin-left",
-                scrolled ? "h-10 lg:h-12 scale-110 lg:scale-125" : "h-12 lg:h-16 scale-[1.35] lg:scale-[1.75]"
+                "hidden md:block object-contain w-auto transition-all duration-300 opacity-90 group-hover:opacity-100 select-none filter drop-shadow-[0_0_15px_rgba(255,255,255,0.25)] origin-left -ml-1",
+                scrolled ? "h-7 lg:h-8 scale-100" : "h-8 lg:h-10 scale-110"
               )}
             />
           </Link>

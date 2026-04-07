@@ -23,16 +23,16 @@ export function Footer() {
           <div className="flex items-center gap-4">
             <Link href="/" className="flex items-center group">
               <img
-                src="/studio_logo.svg"
+                src="/brand/studiox-icon.png"
                 alt="StudioX Icon"
                 draggable="false"
-                className="h-16 md:h-20 w-auto object-contain brightness-0 invert opacity-80 group-hover:opacity-100 transition-all select-none z-10"
+                className="h-16 md:h-20 w-auto object-contain opacity-80 group-hover:opacity-100 transition-all select-none z-10"
               />
               <img
-                src="/studio_brandname.svg"
+                src="/brand/studiox-wordmark.png"
                 alt="StudioX"
                 draggable="false"
-                className="h-10 md:h-12 w-auto object-contain brightness-0 invert opacity-80 group-hover:opacity-100 transition-all select-none hidden sm:block -ml-4 md:-ml-6"
+                className="h-10 md:h-12 w-auto object-contain opacity-80 group-hover:opacity-100 transition-all select-none hidden sm:block -ml-4 md:-ml-6"
               />
             </Link>
 
