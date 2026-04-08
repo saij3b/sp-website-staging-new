@@ -17,7 +17,7 @@ interface EnvironmentConfig {
 }
 
 
-const ENVIRONMENTS = [
+const ENVIRONMENTS: EnvironmentConfig[] = [
     {
         id: "hero",
         background: "linear-gradient(135deg, #2d3a2e 0%, #4a5d3a 18%, #7a8a5a 35%, #c8b88a 55%, #e8c8a0 70%, #f0b8a0 85%, #e8a8a0 100%)",
@@ -25,8 +25,12 @@ const ENVIRONMENTS = [
     },
     {
         id: "features",
-        video: `${ASSET_BASE}/features-bg.mp4`,
-        opacity: 0.5
+        background: `
+            radial-gradient(1100px circle at 50% 72%, rgba(59, 130, 246, 0.10), transparent 58%),
+            radial-gradient(900px circle at 20% 24%, rgba(14, 165, 233, 0.08), transparent 60%),
+            linear-gradient(to bottom, #000000 0%, #090d16 100%)
+        `,
+        opacity: 1
     },
     {
         id: "refine",
