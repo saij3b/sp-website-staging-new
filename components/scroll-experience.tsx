@@ -12,7 +12,7 @@ import { WorkflowStepState } from "@/components/scroll-states/workflow-step-stat
 
 
 const TOTAL_STATES = 4
-const SCROLL_HEIGHT_PER_STATE = 95
+const SCROLL_HEIGHT_PER_STATE = 20
 
 export function ScrollExperience() {
     const containerRef = useRef<HTMLDivElement>(null)
