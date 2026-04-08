@@ -281,8 +281,6 @@ export function WorkflowStepState({
                     {description}
                 </p>
 
-                {}
-                <div className="w-24 h-[1px] bg-gradient-to-r from-transparent via-white to-transparent opacity-30 mt-4" />
             </div>
 
         </section>

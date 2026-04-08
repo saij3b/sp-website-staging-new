@@ -53,8 +53,11 @@ export function ScrollExperience() {
                         pin: true,
                         scrub: 0.25,
                         snap: {
-                            snapTo: 1 / (TOTAL_STATES - 1),
-                            duration: { min: 0.15, max: 0.35 },
+                            // Sub-snap points: Hero → each of 4 Paradigm features → Workflow → Create
+                            // Feature centers at globalProgress: 0.28125, 0.34375, 0.40625, 0.46875
+                            // Workflow center: 0.625, Create center: 0.875
+                            snapTo: [0, 0.28125, 0.34375, 0.40625, 0.46875, 0.625, 0.875],
+                            duration: { min: 0.2, max: 0.45 },
                             delay: 0.02,
                             ease: "power2.out",
                         },
@@ -143,8 +146,16 @@ export function ScrollExperience() {
             }
         }
 
-        
+
         if (index === 0 && globalProgress <= transition) {
+            opacity = 1
+            translateY = 0
+            scale = 1
+        }
+
+        // Fix: at globalProgress === 1.0, `globalProgress < end` is false for the last section,
+        // so opacity stays 0. Force the last section visible at its end boundary.
+        if (index === total - 1 && globalProgress >= end) {
             opacity = 1
             translateY = 0
             scale = 1
