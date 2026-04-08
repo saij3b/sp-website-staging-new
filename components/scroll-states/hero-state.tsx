@@ -442,7 +442,7 @@ export function HeroState({ register }: HeroStateProps) {
     return (
         <section
             ref={containerRef}
-            className="md:absolute md:inset-0 relative w-full h-auto min-h-[100svh] flex flex-col items-start overflow-hidden pt-48 md:pt-56 pb-16"
+            className="md:absolute md:inset-0 relative w-full h-auto min-h-[100svh] flex flex-col items-start overflow-hidden pt-24 md:pt-20 2xl:pt-40 pb-6 2xl:pb-12"
             style={{
                 background: 'linear-gradient(135deg, #2d3a2e 0%, #4a5d3a 18%, #7a8a5a 35%, #c8b88a 55%, #e8c8a0 70%, #f0b8a0 85%, #e8a8a0 100%)',
             }}
@@ -499,7 +499,7 @@ export function HeroState({ register }: HeroStateProps) {
             <div ref={contentRef} className="relative z-20 w-full max-w-[1100px] mx-auto px-6 sm:px-8 lg:px-12 will-change-transform" style={{ pointerEvents: 'auto' }}>
 
                 {}
-                <div className="mb-10 md:mb-14 flex flex-col items-start text-left">
+                <div className="mb-5 md:mb-4 2xl:mb-10 flex flex-col items-start text-left">
                     <h1
                         ref={headingRef}
                         className="opacity-0 text-[2.8rem] sm:text-5xl md:text-6xl lg:text-[4.5rem] font-semibold tracking-[-0.04em] leading-[1.05] text-[#0a0a0a] mb-4"
@@ -568,7 +568,7 @@ export function HeroState({ register }: HeroStateProps) {
                     {}
                     <div
                         ref={canvasInnerRef}
-                        className="relative min-h-[240px] sm:min-h-[300px] md:min-h-[540px]"
+                        className="relative min-h-[240px] sm:min-h-[280px] md:min-h-[280px] lg:min-h-[340px] xl:min-h-[380px] 2xl:min-h-[480px]"
                         style={{ marginLeft: isMobile ? '36px' : '48px', cursor: dragging ? 'grabbing' : 'default' }}
                     >
 
