@@ -9,7 +9,6 @@ import { ASSET_BASE } from "@/lib/assets"
 
 gsap.registerPlugin(ScrollTrigger)
 
-
 const IMAGES = [
     { src: `${ASSET_BASE}/capabilities/capabilities1.png`, top: "-10%", left: "8%", size: "16rem", depth: 3.5, rotate: -4, blur: 0, z: 20 },
     { src: `${ASSET_BASE}/capabilities/capabilities2.png`, top: "5%", left: "78%", size: "20rem", depth: -2.5, rotate: 6, blur: 4, z: 5 },
@@ -50,6 +49,8 @@ const FEATURES = [
     },
 ]
 
+const AUTO_ADVANCE_MS = 3500
+
 interface FeaturesStateProps {
     register: (cb: (progress: number, index: number) => void) => () => void
 }
@@ -60,190 +61,163 @@ export function FeaturesState({ register }: FeaturesStateProps) {
     const textRef = useRef<(HTMLDivElement | null)[]>([])
     const dotsRef = useRef<(HTMLDivElement | null)[]>([])
 
+    // Track current feature via ref to avoid stale closures in timer
+    const currentRef = useRef(0)
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const touchStartX = useRef(0)
+    const isSectionActive = useRef(false)
 
-    const handleDotClick = useCallback((i: number) => {
-        if (window.innerWidth < 768) return
-        const targetLocalProgress = (i + 0.5) / FEATURES.length
-        // Features section spans globalProgress 0.25 → 0.50 (slice 1/4 to 2/4)
-        const targetGlobal = 0.25 + targetLocalProgress * 0.25
-        const mainTrigger = ScrollTrigger.getAll().find(t => t.vars?.pin)
-        if (mainTrigger) {
-            const scrollPos = mainTrigger.start + targetGlobal * (mainTrigger.end - mainTrigger.start)
-            window.scrollTo({ top: scrollPos, behavior: 'smooth' })
-        }
-    }, [])
+    // Core animation: slide text in/out horizontally, shift background images
+    const animateTo = useCallback((nextIndex: number) => {
+        const prevIndex = currentRef.current
+        if (prevIndex === nextIndex) return
+        currentRef.current = nextIndex
 
-    useEffect(() => {
-        const updateAnimation = (localProgress: number) => {
-            
-            IMAGES.forEach((img, i) => {
-                const el = imagesRef.current[i]
-                if (el) {
-                    const progressNormalized = localProgress - 0.5 
+        // Direction: 1 = forward (enter from right), -1 = backward (enter from left)
+        const isWrapForward = prevIndex === FEATURES.length - 1 && nextIndex === 0
+        const isWrapBack = prevIndex === 0 && nextIndex === FEATURES.length - 1
+        const dir = isWrapForward ? 1 : isWrapBack ? -1 : nextIndex > prevIndex ? 1 : -1
 
-                    
-                    
-                    const isMobile = window.innerWidth < 768
-                    const moveMulti = isMobile ? 0.6 : 1
-
-                    const yOffset = progressNormalized * img.depth * -500 * moveMulti
-                    const xOffset = progressNormalized * img.depth * 80 * moveMulti
-
-                    
-                    if (isMobile) {
-                        
-                        const dynamicRotation = img.rotate + (progressNormalized * img.depth * 5)
-                        const distFromCenter = Math.abs(progressNormalized)
-                        const scaleEffect = img.depth > 0 ? 1 + (0.04 * (1 - distFromCenter * 2)) : 1
-
-                        gsap.set(el, {
-                            y: yOffset,
-                            x: xOffset,
-                            rotation: dynamicRotation,
-                            scale: scaleEffect,
-                            force3D: true
-                        })
-                    } else {
-                        const dynamicRotation = img.rotate + (progressNormalized * img.depth * 15)
-                        const distFromCenter = Math.abs(progressNormalized)
-                        const scaleEffect = img.depth > 0 ? 1 + (0.1 * (1 - distFromCenter * 2)) : 1
-
-                        gsap.set(el, {
-                            y: yOffset,
-                            x: xOffset,
-                            rotation: dynamicRotation,
-                            scale: scaleEffect,
-                            force3D: true
-                        })
-                    }
-                }
-            })
-
-            const itemsCount = FEATURES.length
-            const progressPerItem = 1 / itemsCount
-
-            FEATURES.forEach((_, i) => {
-                const el = textRef.current[i]
-                const dotEl = dotsRef.current[i]
-
-                const itemProgressStart = i * progressPerItem
-                const itemProgressEnd = (i + 1) * progressPerItem
-                const center = (itemProgressStart + itemProgressEnd) / 2
-
-                const distFromCenter = Math.abs(localProgress - center)
-                const normalizedDist = distFromCenter / (progressPerItem / 2)
-
-                let opacity = 0
-                let yPos = 100 
-                let scale = 0.90 
-                let blur = 20 
-                let isDotActive = false
-
-                if (normalizedDist <= 1) {
-                    const easeIn = 1 - Math.pow(normalizedDist, 3.5) 
-                    opacity = easeIn
-
-                    const direction = localProgress - center
-                    const signedNormalized = direction / (progressPerItem / 2)
-
-                    yPos = signedNormalized * -100
-                    scale = 0.90 + (0.10 * easeIn)
-                    blur = normalizedDist * 16 
-
-                    if (easeIn > 0.85) isDotActive = true
-                }
-
-                
-                if (localProgress <= itemProgressStart && i === 0) {
-                    opacity = 1
-                    yPos = 0
-                    scale = 1
-                    blur = 0
-                    isDotActive = true
-                }
-                if (localProgress >= itemProgressEnd && i === itemsCount - 1) {
-                    opacity = 1
-                    yPos = 0
-                    scale = 1
-                    blur = 0
-                    isDotActive = true
-                }
-
-                if (el) {
-                    gsap.set(el, {
-                        opacity: Math.max(0, Math.min(1, opacity)),
-                        y: yPos,
-                        scale: scale,
-                        filter: 'none',
-                        pointerEvents: opacity > 0.8 ? 'auto' : 'none'
-                    })
-                }
-
-                if (dotEl) {
-                    gsap.set(dotEl, {
-                        backgroundColor: isDotActive ? '#09090b' : '#e4e4e7', 
-                        scale: isDotActive ? 1.3 : 1
-                    })
-                }
+        // Exit previous card
+        const exitEl = textRef.current[prevIndex]
+        if (exitEl) {
+            gsap.to(exitEl, {
+                opacity: 0,
+                x: dir === 1 ? -70 : 70,
+                duration: 0.32,
+                ease: "power2.in",
+                onComplete: () => gsap.set(exitEl, { pointerEvents: "none" }),
             })
         }
 
-        
-        updateAnimation(0)
+        // Enter next card
+        const enterEl = textRef.current[nextIndex]
+        if (enterEl) {
+            gsap.fromTo(
+                enterEl,
+                { opacity: 0, x: dir === 1 ? 70 : -70 },
+                { opacity: 1, x: 0, duration: 0.42, ease: "power2.out", delay: 0.12, pointerEvents: "auto" }
+            )
+        }
 
-        
-        const unregister = register((globalProgress, index) => {
-            if (window.innerWidth >= 768) {
-                const TOTAL = 4
-                const start = 1 / TOTAL
-                const end = 2 / TOTAL
-                const slice = 1 / TOTAL
-
-                let localProgress = 0
-                if (globalProgress < start) localProgress = 0
-                else if (globalProgress > end) localProgress = 1
-                else localProgress = (globalProgress - start) / slice
-
-                updateAnimation(localProgress)
-            }
+        // Parallax shift background images based on feature index
+        const offset = nextIndex - (FEATURES.length - 1) / 2
+        IMAGES.forEach((img, i) => {
+            const el = imagesRef.current[i]
+            if (!el) return
+            gsap.to(el, {
+                y: offset * img.depth * -55,
+                x: offset * img.depth * 22,
+                rotation: img.rotate + offset * img.depth * 4,
+                duration: 1.3,
+                ease: "power2.out",
+            })
         })
 
-        
-        const ctx = gsap.context(() => {
-            ScrollTrigger.matchMedia({
-                "(max-width: 767px)": () => {
-                    ScrollTrigger.create({
-                        trigger: containerRef.current,
-                        start: "top top",
-                        end: "+=180%",
-                        pin: true,
-                        scrub: 0.8,
-                        onUpdate: (self) => {
-                            updateAnimation(self.progress)
-                        }
-                    })
-                }
+        // Update dots
+        dotsRef.current.forEach((dot, i) => {
+            if (!dot) return
+            gsap.to(dot, {
+                backgroundColor: i === nextIndex ? "#09090b" : "#e4e4e7",
+                scale: i === nextIndex ? 1.3 : 1,
+                duration: 0.25,
             })
-        }, containerRef)
+        })
+    }, [])
 
-        return () => {
-            unregister && unregister()
-            ctx.revert()
+    // Auto-advance: reschedules itself every AUTO_ADVANCE_MS
+    const startTimer = useCallback(() => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        const tick = () => {
+            animateTo((currentRef.current + 1) % FEATURES.length)
+            timerRef.current = setTimeout(tick, AUTO_ADVANCE_MS)
         }
-    }, [register])
+        timerRef.current = setTimeout(tick, AUTO_ADVANCE_MS)
+    }, [animateTo])
+
+    const stopTimer = useCallback(() => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        timerRef.current = null
+    }, [])
+
+    // Manual navigation (dots / swipe)
+    const goTo = useCallback((index: number) => {
+        animateTo(index)
+        stopTimer()
+        startTimer() // reset the timer so auto-advance restarts from now
+    }, [animateTo, startTimer, stopTimer])
+
+    // Initial setup
+    useEffect(() => {
+        // Set initial visibility: only feature 0 visible
+        textRef.current.forEach((el, i) => {
+            if (!el) return
+            gsap.set(el, {
+                opacity: i === 0 ? 1 : 0,
+                x: i === 0 ? 0 : 70,
+                pointerEvents: i === 0 ? "auto" : "none",
+            })
+        })
+        dotsRef.current.forEach((dot, i) => {
+            if (!dot) return
+            gsap.set(dot, {
+                backgroundColor: i === 0 ? "#09090b" : "#e4e4e7",
+                scale: i === 0 ? 1.3 : 1,
+            })
+        })
+
+        // Start auto-advance immediately on mount
+        startTimer()
+        isSectionActive.current = true
+
+        return () => stopTimer()
+    }, [startTimer, stopTimer])
+
+    // Register with scroll experience — pause/resume timer when section leaves/enters view
+    useEffect(() => {
+        const unregister = register((globalProgress) => {
+            const active = globalProgress >= 0.18 && globalProgress <= 0.57
+            if (active && !isSectionActive.current) {
+                isSectionActive.current = true
+                startTimer()
+            } else if (!active && isSectionActive.current) {
+                isSectionActive.current = false
+                stopTimer()
+            }
+        })
+        return () => unregister?.()
+    }, [register, startTimer, stopTimer])
+
+    // Touch swipe handlers
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        touchStartX.current = e.touches[0].clientX
+    }, [])
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        const diff = touchStartX.current - e.changedTouches[0].clientX
+        if (Math.abs(diff) > 40) {
+            const next = diff > 0
+                ? (currentRef.current + 1) % FEATURES.length
+                : (currentRef.current - 1 + FEATURES.length) % FEATURES.length
+            goTo(next)
+        }
+    }, [goTo])
 
     return (
-        <section ref={containerRef} className="md:absolute md:inset-0 relative w-full h-auto min-h-[100svh] flex flex-col items-center justify-center overflow-hidden bg-white origin-center no-scrollbar">
-
-            {}
+        <section
+            ref={containerRef}
+            className="md:absolute md:inset-0 relative w-full h-auto min-h-[100svh] flex flex-col items-center justify-center overflow-hidden bg-white origin-center no-scrollbar"
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+        >
+            {/* Background noise texture */}
             <div className="absolute inset-0 z-0 pointer-events-none w-full h-full overflow-hidden">
-                {}
                 <div
                     className="absolute inset-0 opacity-[0.015] mix-blend-multiply z-10"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
                 />
 
-                {}
+                {/* Floating background images */}
                 <div className="absolute inset-0 w-full h-full origin-center scale-[0.6] sm:scale-[0.8] md:scale-100 pointer-events-none">
                     {IMAGES.map((img, i) => (
                         <div
@@ -256,10 +230,9 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                                 width: img.size,
                                 height: img.size,
                                 zIndex: img.z,
-                                filter: img.blur > 0 ? `blur(${img.blur}px)` : 'drop-shadow(0 30px 40px rgba(0,0,0,0.06)) drop-shadow(0 15px 20px rgba(0,0,0,0.03))',
+                                filter: img.blur > 0 ? `blur(${img.blur}px)` : "drop-shadow(0 30px 40px rgba(0,0,0,0.06)) drop-shadow(0 15px 20px rgba(0,0,0,0.03))",
                             }}
                         >
-                            {}
                             <Image
                                 src={img.src}
                                 alt={`Capability visual ${i}`}
@@ -268,9 +241,9 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                                 priority={i < 5}
                                 className="object-cover"
                                 style={{
-                                    borderRadius: '2.5rem', 
-                                    border: '1px solid rgba(0,0,0,0.05)',
-                                    WebkitMaskImage: '-webkit-radial-gradient(white, black)', 
+                                    borderRadius: "2.5rem",
+                                    border: "1px solid rgba(0,0,0,0.05)",
+                                    WebkitMaskImage: "-webkit-radial-gradient(white, black)",
                                 }}
                             />
                         </div>
@@ -278,16 +251,14 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                 </div>
             </div>
 
-            {}
-            {}
+            {/* Glass card */}
             <div className="relative z-30 w-[95%] md:w-[85%] max-w-6xl h-[70vh] md:h-[60vh] rounded-[3.5rem] bg-white/30 backdrop-blur-[30px] md:backdrop-blur-[80px] border border-white/60 shadow-xl md:shadow-[0_8px_32px_rgba(0,0,0,0.02),0_1px_3px_rgba(0,0,0,0.05),inset_0_0_0_1px_rgba(255,255,255,0.4)] flex flex-col items-center justify-center text-center overflow-hidden">
 
-                {}
                 <div className="absolute inset-0 rounded-[3.5rem] ring-1 ring-inset ring-white/50 pointer-events-none z-10" />
 
-                {}
+                {/* Label */}
                 <div className="absolute top-10 left-1/2 -translate-x-1/2 z-20">
-                    <div className="flex items-center gap-2 group cursor-default">
+                    <div className="flex items-center gap-2 cursor-default">
                         <div className="w-1.5 h-1.5 rounded-full bg-zinc-950 shadow-[0_0_15px_rgba(0,0,0,0.3)] ring-1 ring-zinc-950/20" />
                         <span className="uppercase tracking-[0.3em] text-[10px] font-bold text-zinc-600">
                             The Paradigm
@@ -295,7 +266,7 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                     </div>
                 </div>
 
-                {}
+                {/* Feature slides */}
                 <div className="relative z-20 w-full h-full flex items-center justify-center px-6 md:px-24">
                     {FEATURES.map((feature, i) => {
                         const Icon = feature.icon
@@ -303,7 +274,7 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                             <div
                                 key={i}
                                 ref={el => { textRef.current[i] = el }}
-                                className="absolute inset-x-8 md:inset-x-24 top-0 bottom-0 flex flex-col items-center justify-center will-change-[transform,opacity,filter]"
+                                className="absolute inset-x-8 md:inset-x-24 top-0 bottom-0 flex flex-col items-center justify-center will-change-[transform,opacity]"
                             >
                                 <div className="p-4 bg-white shadow-[0_8px_16px_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.02)] rounded-[1.3rem] mb-8 text-zinc-950 border border-zinc-100/50">
                                     <Icon className="w-6 h-6 flex-shrink-0" strokeWidth={2} />
@@ -319,25 +290,23 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                     })}
                 </div>
 
-                {}
+                {/* Navigation dots */}
                 <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex gap-4">
-                    {FEATURES.map((_, i) => (
+                    {FEATURES.map((feat, i) => (
                         <button
                             key={i}
-                            onClick={() => handleDotClick(i)}
+                            onClick={() => goTo(i)}
                             className="p-2 -m-2 flex items-center justify-center cursor-pointer focus:outline-none"
-                            aria-label={`Go to ${FEATURES[i].title}`}
+                            aria-label={`Go to ${feat.title}`}
                         >
                             <div
                                 ref={el => { dotsRef.current[i] = el }}
-                                className="w-2 h-2 rounded-full ring-1 ring-white shadow-sm transition-all duration-300"
-                                id={`feature-dot-${i}`}
+                                className="w-2 h-2 rounded-full ring-1 ring-white shadow-sm"
                             />
                         </button>
                     ))}
                 </div>
             </div>
-
         </section>
     )
 }

@@ -53,11 +53,9 @@ export function ScrollExperience() {
                         pin: true,
                         scrub: 0.25,
                         snap: {
-                            // Sub-snap points: Hero → each of 4 Paradigm features → Workflow → Create
-                            // Feature centers at globalProgress: 0.28125, 0.34375, 0.40625, 0.46875
-                            // Workflow center: 0.625, Create center: 0.875
-                            snapTo: [0, 0.28125, 0.34375, 0.40625, 0.46875, 0.625, 0.875],
-                            duration: { min: 0.2, max: 0.45 },
+                            // One snap per section — features auto-advance internally
+                            snapTo: 1 / TOTAL_STATES,
+                            duration: { min: 0.2, max: 0.4 },
                             delay: 0.02,
                             ease: "power2.out",
                         },
