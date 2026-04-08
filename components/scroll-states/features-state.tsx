@@ -59,7 +59,7 @@ export function FeaturesState({ register }: FeaturesStateProps) {
     const imagesRef = useRef<(HTMLDivElement | null)[]>([])
     const textRef = useRef<(HTMLDivElement | null)[]>([])
     const dotsRef = useRef<(HTMLDivElement | null)[]>([])
-    const glowRef = useRef<HTMLDivElement>(null)
+
 
     useEffect(() => {
         const updateAnimation = (localProgress: number) => {
@@ -107,16 +107,6 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                 }
             })
 
-            
-            if (glowRef.current) {
-                gsap.set(glowRef.current, {
-                    
-                    rotation: window.innerWidth < 768 ? 0 : localProgress * 180,
-                    opacity: 0.3 + (Math.sin(localProgress * Math.PI) * 0.2)
-                })
-            }
-
-            
             const itemsCount = FEATURES.length
             const progressPerItem = 1 / itemsCount
 
@@ -279,15 +269,6 @@ export function FeaturesState({ register }: FeaturesStateProps) {
             {}
             {}
             <div className="relative z-30 w-[95%] md:w-[85%] max-w-6xl h-[70vh] md:h-[60vh] rounded-[3.5rem] bg-white/30 backdrop-blur-[30px] md:backdrop-blur-[80px] border border-white/60 shadow-xl md:shadow-[0_8px_32px_rgba(0,0,0,0.02),0_1px_3px_rgba(0,0,0,0.05),inset_0_0_0_1px_rgba(255,255,255,0.4)] flex flex-col items-center justify-center text-center overflow-hidden">
-
-                {}
-                <div
-                    ref={glowRef}
-                    className="absolute inset-0 z-0 overflow-hidden pointer-events-none w-[150%] h-[150%] -top-[25%] -left-[25%] flex items-center justify-center origin-center transition-opacity duration-1000"
-                >
-                    {}
-                    <div className="w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_center,rgba(250,250,255,0.9)_0%,rgba(255,255,255,0)_60%)] rotate-45 scale-y-50 blur-[15px]" />
-                </div>
 
                 {}
                 <div className="absolute inset-0 rounded-[3.5rem] ring-1 ring-inset ring-white/50 pointer-events-none z-10" />
