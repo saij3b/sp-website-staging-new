@@ -215,9 +215,9 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                     ScrollTrigger.create({
                         trigger: containerRef.current,
                         start: "top top",
-                        end: "+=400%", 
+                        end: "+=180%",
                         pin: true,
-                        scrub: 1.5, 
+                        scrub: 0.8,
                         onUpdate: (self) => {
                             updateAnimation(self.progress)
                         }
