@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useEffect } from "react"
+import { useRef, useEffect, useCallback } from "react"
 import { Layers, Cpu, Fingerprint, Scale } from "lucide-react"
 import { gsap } from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
@@ -60,6 +60,18 @@ export function FeaturesState({ register }: FeaturesStateProps) {
     const textRef = useRef<(HTMLDivElement | null)[]>([])
     const dotsRef = useRef<(HTMLDivElement | null)[]>([])
 
+
+    const handleDotClick = useCallback((i: number) => {
+        if (window.innerWidth < 768) return
+        const targetLocalProgress = (i + 0.5) / FEATURES.length
+        // Features section spans globalProgress 0.25 → 0.50 (slice 1/4 to 2/4)
+        const targetGlobal = 0.25 + targetLocalProgress * 0.25
+        const mainTrigger = ScrollTrigger.getAll().find(t => t.vars?.pin)
+        if (mainTrigger) {
+            const scrollPos = mainTrigger.start + targetGlobal * (mainTrigger.end - mainTrigger.start)
+            window.scrollTo({ top: scrollPos, behavior: 'smooth' })
+        }
+    }, [])
 
     useEffect(() => {
         const updateAnimation = (localProgress: number) => {
@@ -162,7 +174,7 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                         opacity: Math.max(0, Math.min(1, opacity)),
                         y: yPos,
                         scale: scale,
-                        filter: `blur(${blur}px)`,
+                        filter: 'none',
                         pointerEvents: opacity > 0.8 ? 'auto' : 'none'
                     })
                 }
@@ -308,14 +320,20 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                 </div>
 
                 {}
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex gap-3">
+                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 flex gap-4">
                     {FEATURES.map((_, i) => (
-                        <div
+                        <button
                             key={i}
-                            ref={el => { dotsRef.current[i] = el }}
-                            className={`w-1.5 h-1.5 rounded-full ring-1 ring-white shadow-sm transition-all duration-300`}
-                            id={`feature-dot-${i}`}
-                        />
+                            onClick={() => handleDotClick(i)}
+                            className="p-2 -m-2 flex items-center justify-center cursor-pointer focus:outline-none"
+                            aria-label={`Go to ${FEATURES[i].title}`}
+                        >
+                            <div
+                                ref={el => { dotsRef.current[i] = el }}
+                                className="w-2 h-2 rounded-full ring-1 ring-white shadow-sm transition-all duration-300"
+                                id={`feature-dot-${i}`}
+                            />
+                        </button>
                     ))}
                 </div>
             </div>
