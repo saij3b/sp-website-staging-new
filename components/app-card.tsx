@@ -44,18 +44,20 @@ export function AppCard({ app, onTryNow }: AppCardProps) {
 
         <div className="relative z-20 flex flex-col h-full p-5 mt-auto">
           <div className="mt-auto space-y-4">
-            <div className="flex justify-end gap-2">
-              {app.isNew && (
-                <Badge className="bg-blue-500/20 text-blue-300 border-0 px-2 py-0.5 text-[10px] font-semibold tracking-wider font-sans">
-                  NEW
-                </Badge>
-              )}
-              {app.isPro && (
-                <Badge className="bg-purple-500/20 text-purple-300 border-0 px-2 py-0.5 text-[10px] font-semibold tracking-wider font-sans">
-                  PRO
-                </Badge>
-              )}
-            </div>
+            {(app.isNew || app.isPro) && (
+              <div className="flex justify-end gap-2">
+                {app.isNew && (
+                  <Badge className="bg-blue-500/20 text-blue-300 border-0 px-2 py-0.5 text-[10px] font-semibold tracking-wider font-sans">
+                    NEW
+                  </Badge>
+                )}
+                {app.isPro && (
+                  <Badge className="bg-purple-500/20 text-purple-300 border-0 px-2 py-0.5 text-[10px] font-semibold tracking-wider font-sans">
+                    PRO
+                  </Badge>
+                )}
+              </div>
+            )}
 
             <div>
               <h3 className="text-xl font-semibold font-sans text-white tracking-tight mb-1.5">
@@ -66,7 +68,7 @@ export function AppCard({ app, onTryNow }: AppCardProps) {
               </p>
             </div>
 
-            <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div className="flex flex-wrap gap-1.5">
                 {app.tags.slice(0, 2).map(tag => (
                   <span
