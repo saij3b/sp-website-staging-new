@@ -103,50 +103,44 @@ export function ScrollExperience() {
         const slice = 1 / total
         const start = index * slice
         const end = (index + 1) * slice
-        const transition = slice * 0.12 
+        // half the cross-fade window — fades are centered on the boundary so they overlap
+        const half = slice * 0.15
 
         let opacity = 0
         let translateY = 0
         let scale = 1
 
-        
-        if (globalProgress < start - transition || globalProgress > end + transition) {
+        // Completely outside the extended visibility range
+        if (globalProgress < start - half || globalProgress > end + half) {
             return { opacity: 0, translateY: 20, scale: 0.98, blur: 0, visibility: 'hidden' as const, zIndex: 0, pointerEvents: 'none' as const }
         }
 
-        if (globalProgress >= start && globalProgress < end) {
-            if (globalProgress < start + transition && index !== 0) {
-                
-                const p = (globalProgress - start) / transition
-                const eased = p * p * (3 - 2 * p) 
+        if (globalProgress < start + half) {
+            // Fade-in zone: [start - half, start + half] centered on the boundary
+            if (index === 0) {
+                // First section is always fully visible from the start
+                opacity = 1
+            } else {
+                const p = Math.max(0, (globalProgress - (start - half)) / (2 * half))
+                const eased = p * p * (3 - 2 * p)
                 opacity = eased
                 translateY = (1 - eased) * 15
                 scale = 0.99 + (eased * 0.01)
-            } else if (globalProgress > end - transition && index !== total - 1) {
-                
-                const p = (end - globalProgress) / transition
+            }
+        } else if (globalProgress > end - half) {
+            // Fade-out zone: [end - half, end + half] centered on the boundary
+            if (index === total - 1) {
+                // Last section stays fully visible at its end boundary
+                opacity = 1
+            } else {
+                const p = Math.max(0, ((end + half) - globalProgress) / (2 * half))
                 const eased = p * p * (3 - 2 * p)
                 opacity = eased
                 translateY = (eased - 1) * 15
                 scale = 1 - ((1 - eased) * 0.01)
-            } else {
-                
-                opacity = 1
-                translateY = 0
-                scale = 1
             }
-        }
-
-
-        if (index === 0 && globalProgress <= transition) {
-            opacity = 1
-            translateY = 0
-            scale = 1
-        }
-
-        // Fix: at globalProgress === 1.0, `globalProgress < end` is false for the last section,
-        // so opacity stays 0. Force the last section visible at its end boundary.
-        if (index === total - 1 && globalProgress >= end) {
+        } else {
+            // Full-opacity zone: [start + half, end - half]
             opacity = 1
             translateY = 0
             scale = 1
@@ -159,7 +153,7 @@ export function ScrollExperience() {
             opacity: clampedOpacity,
             translateY,
             scale,
-            blur: 0, 
+            blur: 0,
             pointerEvents: (clampedOpacity > 0.5) ? 'auto' as const : 'none' as const,
             visibility: isActive ? 'visible' as const : 'hidden' as const,
             zIndex: isActive ? 100 - Math.round((1 - clampedOpacity) * 50) : 0
