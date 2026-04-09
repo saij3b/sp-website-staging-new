@@ -91,8 +91,12 @@ export function FeaturesState({ register }: FeaturesStateProps) {
             imageEls.current.forEach((el, i) => {
                 if (!el) return
                 const depth = IMAGES[i].depth
-                const driftX = Math.sin(t * 0.3 + i * 0.7) * 8 * depth
-                const driftY = Math.cos(t * 0.2 + i * 1.1) * 6 * depth
+                // Orbital motion: each image orbits its anchor at unique radius, speed, and start angle
+                const speed = 0.12 + i * 0.018
+                const angle = t * speed + (i * Math.PI * 2) / IMAGES.length
+                const orbitR = (18 + depth * 14) * depth
+                const driftX = Math.cos(angle) * orbitR
+                const driftY = Math.sin(angle) * orbitR * 0.55 // elliptical
                 el.style.transform = `rotate(${IMAGES[i].rotate}deg) translate(${dx * depth + driftX}px, ${dy * depth + driftY}px)`
             })
 
