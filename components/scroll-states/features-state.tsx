@@ -86,14 +86,11 @@ export function FeaturesState({ register }: FeaturesStateProps) {
             const dx = (currentRef.current.x - 0.5) * -40
             const dy = (currentRef.current.y - 0.5) * -30
 
-            const t = Date.now() / 1000
-
             imageEls.current.forEach((el, i) => {
                 if (!el) return
                 const depth = IMAGES[i].depth
-                const driftX = Math.sin(t * 0.3 + i * 0.7) * 8 * depth
-                const driftY = Math.cos(t * 0.2 + i * 1.1) * 6 * depth
-                el.style.transform = `rotate(${IMAGES[i].rotate}deg) translate(${dx * depth + driftX}px, ${dy * depth + driftY}px)`
+                // Mouse parallax only — float handled by CSS @keyframes on inner wrapper
+                el.style.transform = `rotate(${IMAGES[i].rotate}deg) translate(${dx * depth}px, ${dy * depth}px)`
             })
 
             rafRef.current = requestAnimationFrame(loop)
@@ -117,6 +114,24 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
                 />
 
+                {/* CSS float keyframes — each image gets a unique float animation */}
+                <style>{`
+                    @keyframes float-img-0  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(-8px)  translateY(12px);  } }
+                    @keyframes float-img-1  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(10px)  translateY(-8px);  } }
+                    @keyframes float-img-2  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(-5px)  translateY(14px);  } }
+                    @keyframes float-img-3  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(12px)  translateY(-12px); } }
+                    @keyframes float-img-4  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(-14px) translateY(8px);   } }
+                    @keyframes float-img-5  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(7px)   translateY(-10px); } }
+                    @keyframes float-img-6  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(-10px) translateY(15px);  } }
+                    @keyframes float-img-7  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(6px)   translateY(-7px);  } }
+                    @keyframes float-img-8  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(-9px)  translateY(11px);  } }
+                    @keyframes float-img-9  { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(11px)  translateY(-9px);  } }
+                    @keyframes float-img-10 { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(-7px)  translateY(13px);  } }
+                    @keyframes float-img-11 { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(8px)   translateY(-6px);  } }
+                    @keyframes float-img-12 { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(-12px) translateY(9px);   } }
+                    @keyframes float-img-13 { from { transform: translateX(0px) translateY(0px); }  to { transform: translateX(5px)   translateY(-13px); } }
+                `}</style>
+
                 {/* Floating images — each moved independently by mouse depth */}
                 <div className="absolute inset-0 w-full h-full origin-center scale-[0.6] sm:scale-[0.8] md:scale-100 pointer-events-none">
                     {IMAGES.map((img, i) => (
@@ -130,24 +145,34 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                                 width: img.size,
                                 height: img.size,
                                 zIndex: img.z,
-                                // base rotation set inline; parallax will override via style.transform
                                 transform: `rotate(${img.rotate}deg)`,
                                 filter: img.blur > 0 ? `blur(${img.blur}px)` : "drop-shadow(0 30px 40px rgba(0,0,0,0.06)) drop-shadow(0 15px 20px rgba(0,0,0,0.03))",
                             }}
                         >
-                            <Image
-                                src={img.src}
-                                alt={`Capability visual ${i}`}
-                                fill
-                                sizes="(max-width: 768px) 40vw, 25vw"
-                                priority={i < 5}
-                                className="object-cover"
+                            {/* Inner wrapper carries the CSS float animation */}
+                            <div
                                 style={{
-                                    borderRadius: "2.5rem",
-                                    border: "1px solid rgba(0,0,0,0.05)",
-                                    WebkitMaskImage: "-webkit-radial-gradient(white, black)",
+                                    width: "100%",
+                                    height: "100%",
+                                    animation: `float-img-${i} ${3.2 + (i % 5) * 0.65}s ease-in-out infinite alternate`,
+                                    animationDelay: `${-(i * 0.42)}s`,
+                                    willChange: "transform",
                                 }}
-                            />
+                            >
+                                <Image
+                                    src={img.src}
+                                    alt={`Capability visual ${i}`}
+                                    fill
+                                    sizes="(max-width: 768px) 40vw, 25vw"
+                                    priority={i < 5}
+                                    className="object-cover"
+                                    style={{
+                                        borderRadius: "2.5rem",
+                                        border: "1px solid rgba(0,0,0,0.05)",
+                                        WebkitMaskImage: "-webkit-radial-gradient(white, black)",
+                                    }}
+                                />
+                            </div>
                         </div>
                     ))}
                 </div>
