@@ -161,7 +161,7 @@ export function ScrollExperience() {
     }
 
     return (
-        <div ref={containerRef} className="relative w-full md:h-screen bg-background text-foreground selection:bg-primary/30">
+        <div ref={containerRef} className="relative w-full md:h-screen bg-background text-foreground selection:bg-primary/30 z-[45]">
             {}
             <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
                 <BackgroundSystem register={register} />
