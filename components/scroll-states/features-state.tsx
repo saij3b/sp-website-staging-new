@@ -86,10 +86,14 @@ export function FeaturesState({ register }: FeaturesStateProps) {
             const dx = (currentRef.current.x - 0.5) * -40
             const dy = (currentRef.current.y - 0.5) * -30
 
+            const t = Date.now() / 1000
+
             imageEls.current.forEach((el, i) => {
                 if (!el) return
                 const depth = IMAGES[i].depth
-                el.style.transform = `rotate(${IMAGES[i].rotate}deg) translate(${dx * depth}px, ${dy * depth}px)`
+                const driftX = Math.sin(t * 0.3 + i * 0.7) * 8 * depth
+                const driftY = Math.cos(t * 0.2 + i * 1.1) * 6 * depth
+                el.style.transform = `rotate(${IMAGES[i].rotate}deg) translate(${dx * depth + driftX}px, ${dy * depth + driftY}px)`
             })
 
             rafRef.current = requestAnimationFrame(loop)
