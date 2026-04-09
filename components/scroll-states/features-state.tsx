@@ -86,7 +86,7 @@ export function FeaturesState({ register }: FeaturesStateProps) {
                 x: dir === 1 ? -70 : 70,
                 duration: 0.32,
                 ease: "power2.in",
-                onComplete: () => gsap.set(exitEl, { pointerEvents: "none" }),
+                onComplete: () => { gsap.set(exitEl, { pointerEvents: "none" }) },
             })
         }
 
