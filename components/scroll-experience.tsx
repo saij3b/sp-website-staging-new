@@ -51,14 +51,7 @@ export function ScrollExperience() {
                         start: "top top",
                         end: `+=${TOTAL_STATES * SCROLL_HEIGHT_PER_STATE}%`,
                         pin: true,
-                        scrub: 0.25,
-                        snap: {
-                            // One snap per section — features auto-advance internally
-                            snapTo: 1 / TOTAL_STATES,
-                            duration: { min: 0.2, max: 0.4 },
-                            delay: 0.02,
-                            ease: "power2.out",
-                        },
+                        scrub: 0.5,
                         onUpdate: (self) => {
                             const globalProgress = self.progress
                             const currentIndex = Math.min(TOTAL_STATES - 1, Math.floor(globalProgress * TOTAL_STATES))
