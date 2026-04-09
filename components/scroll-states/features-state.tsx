@@ -88,11 +88,18 @@ export function FeaturesState({ register }: FeaturesStateProps) {
 
             const t = Date.now() / 1000
 
+            // Lissajous params: unique a:b ratio + phase delta per image
+            const A_RATIOS = [2, 3, 1, 3, 2, 4, 1, 3, 2, 3, 1, 2, 3, 4]
+            const B_RATIOS = [3, 2, 2, 4, 1, 3, 3, 2, 4, 1, 2, 3, 2, 3]
+            const DELTAS   = [0, 0.5, 1.0, 0.2, 0.8, 0.3, 1.2, 0.6, 0.1, 0.9, 0.4, 0.7, 0.2, 1.1]
+
             imageEls.current.forEach((el, i) => {
                 if (!el) return
                 const depth = IMAGES[i].depth
-                const driftX = Math.sin(t * 0.3 + i * 0.7) * 8 * depth
-                const driftY = Math.cos(t * 0.2 + i * 1.1) * 6 * depth
+                const amplitude = (10 + depth * 10) * depth
+                const speed = 0.07
+                const driftX = Math.sin(A_RATIOS[i] * t * speed + DELTAS[i]) * amplitude
+                const driftY = Math.sin(B_RATIOS[i] * t * speed) * amplitude * 0.65
                 el.style.transform = `rotate(${IMAGES[i].rotate}deg) translate(${dx * depth + driftX}px, ${dy * depth + driftY}px)`
             })
 
