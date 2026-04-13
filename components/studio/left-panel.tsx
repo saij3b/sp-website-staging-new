@@ -68,25 +68,6 @@ function getConfig(modelId: string): ModelConfig | undefined {
     return IMAGE_MODELS[modelId] || VIDEO_MODELS[modelId];
 }
 
-function estimateModelCost(modelId: string): number {
-    const config = getConfig(modelId);
-    if (config?.type === "image") return config.getCost({ resolution: config.defaultResolution, n: 1 });
-    if (config?.type === "video") {
-        return config.getCost({
-            resolution: config.defaultResolution,
-            duration: config.defaultDuration,
-            generateAudio: false,
-        });
-    }
-    return 0;
-}
-
-function getCostTier(cost: number): "Economy" | "Balanced" | "Premium" {
-    if (cost <= 5) return "Economy";
-    if (cost <= 12) return "Balanced";
-    return "Premium";
-}
-
 export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: initialMode, aspectRatio, setAspectRatio, studioMode }: StudioLeftPanelProps) {
     const searchParams = useSearchParams();
 
@@ -507,7 +488,6 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
         }
     }, [resolution, cfg]);
 
-    const currentModelId = selectedModel.id;
     const isImageMode = cfg?.type === "image";
     const isVideoMode = cfg?.type === "video";
     const imgCfg = isImageMode ? (cfg as ImageModelConfig) : null;
@@ -516,61 +496,11 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
     const supportsMultiOutput = imgCfg?.supportsN && imgCfg.maxN > 1;
     const isMultiOutputImage = creationMode === "image" || creationMode === "remix";
 
-    const currentCostEstimate = (() => {
-        if (imgCfg) return imgCfg.getCost({ resolution, n: supportsMultiOutput ? imageCount : 1 });
-        if (vidCfg) {
-            let effectiveDuration = duration;
-            if (vidCfg.durationOptions && vidCfg.durationOptions.length > 0) {
-                const validDurations = vidCfg.durationOptions.map(d => d.value);
-                if (!validDurations.includes(effectiveDuration)) {
-                    effectiveDuration = vidCfg.defaultDuration || validDurations[0];
-                }
-            } else if (vidCfg.durationRange) {
-                effectiveDuration = Math.max(vidCfg.durationRange.min, Math.min(vidCfg.durationRange.max, effectiveDuration));
-            }
-            return vidCfg.getCost({ resolution: vidCfg.supportsResolution ? resolution : undefined, duration: effectiveDuration, generateAudio });
-        }
-        return selectedModel.cost || 0;
-    })();
 
     const activeModelPool = useMemo(
         () => (creationMode === "video" || (creationMode === "remix" && remixType === "video") ? AI_VIDEO_MODELS : AI_IMAGE_MODELS),
         [creationMode, remixType]
     );
-
-    const quickModelPicks = useMemo(() => {
-        const weighted = activeModelPool
-            .map((model) => ({ ...model, estimatedCost: estimateModelCost(model.id) }))
-            .sort((a, b) => a.estimatedCost - b.estimatedCost);
-
-        if (weighted.length === 0) return [];
-        const economy = weighted[0];
-        const balanced = weighted[Math.floor(weighted.length / 2)];
-        const premium = weighted[weighted.length - 1];
-
-        const unique = [economy, balanced, premium].filter(
-            (value, index, array) => array.findIndex((entry) => entry.id === value.id) === index
-        );
-
-        return unique.map((item) => ({
-            id: item.id,
-            label: getCostTier(item.estimatedCost),
-            helper: `${item.estimatedCost} cr`,
-            name: item.name,
-        }));
-    }, [activeModelPool]);
-
-    const providerMode = creationMode === "remix"
-        ? "remix"
-        : creationMode === "video" || (creationMode === "templates" && VIDEO_MODELS[selectedModel.id])
-            ? "video"
-            : "image";
-
-    const selectedProvider = chooseProvider({
-        mode: providerMode,
-        model: selectedModel.id,
-        wantsRemix: creationMode === "remix" || Boolean(previewUrl),
-    });
 
     const showImageUpload = isImageMode ? imgCfg!.supportsReferenceImage : (isVideoMode ? vidCfg!.supportsReferenceImage : false);
     const showVideoUpload = isVideoMode && vidCfg?.supportsReferenceVideo;
@@ -659,14 +589,6 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-4">
-                                                    {currentCostEstimate > 0 && (
-                                                        <div className="flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full bg-black/60 border border-[#c5a44e]/20 transition-all shadow-inner">
-                                                            <div className="w-3.5 h-3.5 rounded-full bg-[#c5a44e] flex items-center justify-center">
-                                                                <Sparkles className="w-2.5 h-2.5 text-black fill-black" />
-                                                            </div>
-                                                            <span className="text-[11px] font-black text-[#c5a44e] tabular-nums tracking-wider">{currentCostEstimate}</span>
-                                                        </div>
-                                                    )}
                                                     <ChevronDown className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 transition-all group-hover:translate-y-0.5" />
                                                 </div>
                                             </div>
@@ -680,19 +602,6 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                                         >
                                             <div className="space-y-0.5">
                                                 {activeModelPool.map((model) => {
-                                                    const estimatedCost = estimateModelCost(model.id);
-                                                    const tier = getCostTier(estimatedCost);
-                                                    const modelProviderMode = creationMode === "remix"
-                                                        ? "remix"
-                                                        : creationMode === "video" || (creationMode === "templates" && VIDEO_MODELS[model.id])
-                                                            ? "video"
-                                                            : "image";
-                                                    const modelProvider = chooseProvider({
-                                                        mode: modelProviderMode,
-                                                        model: model.id,
-                                                        wantsRemix: creationMode === "remix",
-                                                    });
-
                                                     return (
                                                         <DropdownMenuItem
                                                             key={model.id}
@@ -705,22 +614,8 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                                                                     <span className={cn("text-[13px] font-medium text-zinc-300 group-hover:text-zinc-100 transition-colors truncate")}>{model.name}</span>
                                                                 </div>
                                                                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                                                                    <span className="rounded-full border border-[#c5a44e]/30 bg-[#c5a44e]/10 px-1.5 py-0.5 text-[9px] uppercase tracking-[0.16em] text-[#c5a44e]">
-                                                                        {modelProvider}
-                                                                    </span>
-                                                                    <span className="rounded-full border border-white/15 bg-white/[0.04] px-1.5 py-0.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
-                                                                        {tier}
-                                                                    </span>
                                                                     {model.isNew && <span className="bg-[#c5a44e]/10 text-[#c5a44e] text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md border border-[#c5a44e]/20">New</span>}
                                                                 </div>
-                                                            </div>
-                                                            <div className="ml-2 flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                                                                <div className="w-4 h-4 rounded-full bg-[#c5a44e] flex items-center justify-center">
-                                                                    <Sparkles className="w-2.5 h-2.5 text-black fill-black" />
-                                                                </div>
-                                                                <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white tabular-nums tracking-wide">
-                                                                    {estimatedCost}
-                                                                </span>
                                                             </div>
                                                         </DropdownMenuItem>
                                                     );
@@ -730,17 +625,7 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                                     </DropdownMenuContent>
                                 </DropdownMenu>
 
-                                <div className="flex flex-wrap items-center gap-1.5 px-1">
-                                    <span className="rounded-full border border-[#c5a44e]/30 bg-[#c5a44e]/10 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-[#c5a44e]">
-                                        Provider: {selectedProvider}
-                                    </span>
-                                    <span className="rounded-full border border-white/15 bg-white/[0.03] px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
-                                        Tier: {getCostTier(currentCostEstimate)}
-                                    </span>
-                                    <span className="rounded-full border border-white/15 bg-white/[0.03] px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-zinc-400">
-                                        Estimated: {currentCostEstimate} credits
-                                    </span>
-                                </div>
+
                             </div>
                         )}
 
@@ -1268,12 +1153,6 @@ export function StudioLeftPanel({ onGenerate, onCancel, isGenerating, mode: init
                         <span className="flex items-center justify-center gap-2.5 relative z-10">
                             <Sparkles className={cn("w-4 h-4 transition-all duration-700 group-hover:rotate-12 group-hover:scale-110", isGenerating || !prompt ? "opacity-50" : "text-black")} />
                             <span className="relative top-[0.5px]">Generate</span>
-                            {currentCostEstimate > 0 && (
-                                <div className="flex items-center gap-1.5 ml-1.5 pl-2 pr-3 py-1.5 rounded-full bg-black/20 border border-black/10">
-                                    <Sparkles className="w-2.5 h-2.5 text-black/70" />
-                                    <span className="text-[11px] font-black text-black/80 tabular-nums tracking-widest">{currentCostEstimate}</span>
-                                </div>
-                            )}
                         </span>
                     )}
                 </Button>

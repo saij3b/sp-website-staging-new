@@ -21,7 +21,6 @@ import {
   Move3D,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/context/auth-context";
 
 export type StudioMode =
   | "text-to-image"
@@ -70,7 +69,6 @@ const BOTTOM_LINKS = [
 ];
 
 export function StudioSidebar({ activeMode, onModeChange, collapsed = false, onToggleCollapse }: SidebarProps) {
-  const { credits } = useAuth();
   const pathname = usePathname();
 
   return (
@@ -178,7 +176,7 @@ export function StudioSidebar({ activeMode, onModeChange, collapsed = false, onT
         </div>
       </nav>
 
-      {/* Footer - Credits */}
+      {/* Footer */}
       <div className="shrink-0 border-t border-[#1a1a1a] p-3">
         {!collapsed ? (
           <Link
@@ -187,9 +185,7 @@ export function StudioSidebar({ activeMode, onModeChange, collapsed = false, onT
           >
             <Sparkles className="w-4 h-4 text-[#c5a44e]" />
             <div className="flex flex-col">
-              <span className="text-xs font-semibold text-[#c5a44e]">
-                {credits !== null ? credits.toLocaleString() : "..."} Credits
-              </span>
+              <span className="text-xs font-semibold text-[#c5a44e]">Upgrade Plan</span>
               <span className="text-[10px] text-zinc-500 group-hover:text-zinc-400">Upgrade Now</span>
             </div>
           </Link>
@@ -197,7 +193,7 @@ export function StudioSidebar({ activeMode, onModeChange, collapsed = false, onT
           <Link
             href="/pricing"
             className="flex items-center justify-center p-2 rounded-lg bg-[#c5a44e]/10 border border-[#c5a44e]/20 hover:bg-[#c5a44e]/20 transition-all"
-            title={`${credits ?? "..."} Credits`}
+            title="Upgrade Plan"
           >
             <Sparkles className="w-4 h-4 text-[#c5a44e]" />
           </Link>
