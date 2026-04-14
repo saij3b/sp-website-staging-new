@@ -81,16 +81,7 @@ export function StudioSidebar({ activeMode, onModeChange, collapsed = false, onT
       style={{ top: studioNavOffset, height: `calc(100dvh - ${studioNavOffset})` }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 pt-4 pb-2 shrink-0">
-        {!collapsed && (
-          <Link href="/" className="flex items-center gap-2 group">
-            <img
-              src="/brand/studiox-lockup.png"
-              alt="StudioX"
-              className="h-8 w-auto object-contain filter brightness-110 transition-all duration-300 group-hover:brightness-150"
-            />
-          </Link>
-        )}
+      <div className={cn("flex items-center px-3 pt-3 pb-2 shrink-0", collapsed ? "justify-center" : "justify-end")}>
         <button
           onClick={onToggleCollapse}
           className="p-1.5 hover:bg-white/5 rounded-md transition-colors cursor-pointer select-none text-zinc-500 hover:text-zinc-300"
