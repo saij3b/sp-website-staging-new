@@ -773,6 +773,7 @@ function StudioLayout() {
 
 
   const sidebarWidth = sidebarCollapsed ? 60 : 210;
+  const studioNavOffset = 96;
 
   const handleSidebarModeChange = (newMode: StudioMode) => {
     setStudioMode(newMode);
@@ -824,7 +825,7 @@ function StudioLayout() {
       />
 
       {/* Mobile sidebar toggle */}
-      <div className="lg:hidden fixed top-4 left-4 z-50">
+      <div className="lg:hidden fixed left-4 z-50" style={{ top: studioNavOffset + 12 }}>
         <Button
           variant="ghost"
           size="icon"
@@ -837,8 +838,12 @@ function StudioLayout() {
 
       {/* Main Content */}
       <div
-        className="transition-all duration-300 h-dvh overflow-hidden"
-        style={{ marginLeft: sidebarWidth }}
+        className="transition-all duration-300 overflow-hidden"
+        style={{
+          marginLeft: sidebarWidth,
+          marginTop: studioNavOffset,
+          height: `calc(100dvh - ${studioNavOffset}px)`,
+        }}
       >
         {/* Top Bar */}
         <div className="h-14 border-b border-[#1a1a1a] flex items-center justify-between px-6 shrink-0 bg-[#0a0a0a]">
@@ -858,7 +863,7 @@ function StudioLayout() {
         </div>
 
         {/* Two-column content */}
-        <div className="flex h-[calc(100dvh-56px)] overflow-hidden">
+        <div className="flex h-[calc(100%-56px)] overflow-hidden">
           {/* Left: Generation Form */}
           <div className="w-[480px] xl:w-[520px] shrink-0 h-full flex flex-col border-r border-[#1a1a1a]">
             <div className="flex-1 min-h-0">

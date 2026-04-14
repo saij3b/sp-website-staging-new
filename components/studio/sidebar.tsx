@@ -70,13 +70,15 @@ const BOTTOM_LINKS = [
 
 export function StudioSidebar({ activeMode, onModeChange, collapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
+  const studioNavOffset = "96px";
 
   return (
     <div
       className={cn(
-        "h-dvh flex flex-col bg-[#0a0a0a] border-r border-[#1a1a1a] transition-all duration-300 fixed left-0 top-0 z-40 overflow-hidden",
+        "flex flex-col bg-[#0a0a0a] border-r border-[#1a1a1a] transition-all duration-300 fixed left-0 z-40 overflow-hidden",
         collapsed ? "w-[60px]" : "w-[210px]"
       )}
+      style={{ top: studioNavOffset, height: `calc(100dvh - ${studioNavOffset})` }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 pt-4 pb-2 shrink-0">

@@ -23,19 +23,19 @@ export default function RegisterPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const redirectPath = useRef("/");
+    const redirectPath = useRef("/studio");
 
     useEffect(() => {
         
         const params = new URLSearchParams(window.location.search);
-        redirectPath.current = params.get('redirect') || "/onboarding";
+        redirectPath.current = params.get('redirect') || "/studio";
     }, []);
 
     useEffect(() => {
         
         
         if (!isSubmitting && !isVerificationSent && !loading && user) {
-            router.push(redirectPath.current || "/onboarding");
+            router.push(redirectPath.current || "/studio");
         }
     }, [user, loading, router, isVerificationSent, isSubmitting]);
 

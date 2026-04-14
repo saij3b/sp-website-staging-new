@@ -56,12 +56,12 @@ export default function LoginPage() {
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const redirectPath = useRef("/");
+    const redirectPath = useRef("/studio");
 
     useEffect(() => {
 
         const params = new URLSearchParams(window.location.search);
-        redirectPath.current = params.get('redirect') || "/onboarding";
+        redirectPath.current = params.get('redirect') || "/studio";
     }, []);
 
     // Preview auth redirect disabled — each Vercel preview should handle auth on its own domain.
